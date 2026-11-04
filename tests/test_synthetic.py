@@ -11,6 +11,7 @@ numbers and the tolerances below hold on both.
 
 from __future__ import annotations
 
+import pytest
 import torch
 
 from CrowdSegmenter_CT_GCE.bound_study import (CrowdModel, bayes_risk,
@@ -19,6 +20,13 @@ from CrowdSegmenter_CT_GCE.dawid_skene import (fit_dawid_skene, rho_hat)
 
 SEED = 7
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+@pytest.fixture
+def rng() -> torch.Generator:
+    """Suite-local deterministic generator: a fresh CPU torch.Generator seeded
+    with the suite seed, identical draws to the origin conftest fixture."""
+    return torch.Generator().manual_seed(SEED)
 TOL_MONTE_CARLO = 0.01
 TOL_RECOVERY = 0.05
 MONTE_CARLO_SAMPLES = 200_000

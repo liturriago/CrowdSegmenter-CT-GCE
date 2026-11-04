@@ -97,7 +97,7 @@ from .reliability import unconstrained_optimum
 from .thresholds import calibrate_cutoffs, category_confidences
 
 __provenance__ = {
-    "revision": "research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r09.md",
+    "revision": "research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r10.md",
     "sections": ["Falsifiable claim and assumptions", "Estimating the truncation thresholds"],
     "equations": [],
     "invariants": [

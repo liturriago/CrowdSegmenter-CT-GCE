@@ -68,7 +68,7 @@ import torch
 from .reliability import annotated_labels, gather_at_annotated, validate_reliability
 
 __provenance__ = {
-    "revision": "research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r09.md",
+    "revision": "research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r10.md",
     "sections": ["The loss"],
     "equations": ["5", "6", "7"],
     "invariants": [

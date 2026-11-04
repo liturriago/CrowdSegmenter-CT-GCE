@@ -44,7 +44,7 @@ import torch
 import torch.nn.functional as F
 
 __provenance__ = {
-    "revision": "research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r09.md",
+    "revision": "research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r10.md",
     "sections": ["Estimating the truncation thresholds"],
     "equations": ["3"],
     "invariants": [

@@ -83,7 +83,7 @@ from .selection_study import (BRANCH_LR, BRANCH_STEPS, UNCONSTRAINED_Q,
                               train_candidate)
 
 __provenance__ = {
-    "revision": "research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r09.md",
+    "revision": "research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r10.md",
     "sections": ["The loss"],
     "equations": ["1"],
     "invariants": [

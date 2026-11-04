@@ -62,7 +62,7 @@ from .metric import (calibration_threshold, consistency, fraction_below,
                      panel_lower_quantile, panel_mean, panel_median, prototype)
 
 __provenance__ = {
-    "revision": "research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r09.md",
+    "revision": "research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r10.md",
     "sections": [
         "The evaluation metric: neighborhood latent consistency",
         "Falsifiable claim and assumptions",

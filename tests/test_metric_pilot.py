@@ -1,4 +1,4 @@
-"""Level 2 - the metric pilot's own invariants (r09's metric claim protocol).
+"""Level 2 - the metric pilot's own invariants (r10's metric claim protocol).
 
 One test per claim the pilot's machinery makes about itself, each traceable to
 the bound revision's metric section or to the comparability rules the pilot is

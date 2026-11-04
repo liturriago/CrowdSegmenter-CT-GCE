@@ -32,4 +32,4 @@ def test_every_module_declares_provenance() -> None:
     for module in MODULES:
         provenance = getattr(importlib.import_module(module), "__provenance__", None)
         assert provenance is not None, f"{module} has no __provenance__"
-        assert provenance["revision"] == "research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r09.md"
+        assert provenance["revision"] == "research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r10.md"

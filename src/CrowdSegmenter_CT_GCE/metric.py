@@ -49,7 +49,7 @@ import numpy as np
 from scipy.ndimage import maximum_filter
 
 __provenance__ = {
-    "revision": "research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r09.md",
+    "revision": "research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r10.md",
     "sections": ["The evaluation metric: neighborhood latent consistency"],
     "equations": ["8", "9"],
     "invariants": [

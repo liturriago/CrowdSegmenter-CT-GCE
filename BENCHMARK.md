@@ -1,9 +1,12 @@
-# Benchmark declaration — CT-GCE against r09
+# Benchmark declaration — CT-GCE against r10
 
-Bound revision: `research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r09.md`
-(re-bound from r05 on 2026-10-27: r09's delta over r05 is the new
-evaluation-metric section, Eqs. 8–9; the loss and threshold sections are
-unchanged).
+Bound revision: `research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r10.md`
+(re-bound from r09 on 2026-11-04: r10's delta over r09 publishes the
+synthetic-study selections — the coupled likelihood (Ec. 7) as the
+identifiability constraint and the soft gating of (Ec. 1) as the design — and
+the metric-pilot selections — the per-annotator unit of (Ec. 9), the mean of
+{C_a} as panel score with the lower decile as early alarm, floor-anchored
+presentation; the loss, threshold and metric sections are unchanged).
 
 This is the human-readable half of the declaration. The machine half is
 `src/CrowdSegmenter_CT_GCE_Benchmark/__init__.py`'s `__benchmark__`. The method's
@@ -12,14 +15,14 @@ premises live beside the method, in `src/CrowdSegmenter_CT_GCE/__init__.py`
 
 ## What is compared
 
-The proposed arm is CT-GCE (r09, Eq. 1–4; the identifiability candidates of Eq. 5–7 are the selection study's objects). The comparison is against the two
-families r09's secondary claim names:
+The proposed arm is CT-GCE (r10, Eq. 1–4 with the Eq. 7 constraint selected and the soft gating of Eq. 1 as the design; Eqs. 8–9 are the zero-GT metric). The comparison is against the two
+families r10's secondary claim names:
 
 - crowd-aggregation baselines: majority voting and STAPLE;
 - noise-correction baselines.
 
 The **closed list** of concrete implementations, datasets and versions is an
-open item of r09 and is not fixed here. The declaration names the families, not
+open item of r10 and is not fixed here. The declaration names the families, not
 a catalogue. The machine `__benchmark__["arms"]` block stays empty until
 `wiring.py` exists: declaring an arm before the harness calls the method's loss
 would make `fidelity.benchmark` report that unfaithfulness, which is exactly
@@ -30,7 +33,7 @@ what the wiring rung is for.
 - Prediction: a class label per pixel (consensus segmentation).
 - Statistical unit: the pixel. Per-image and per-dataset aggregates are
   summaries of pixel-level outcomes, never a second unit.
-- The primary claim (the bound, r09 § Falsifiable claim and assumptions) is
+- The primary claim (the bound, r10 § Falsifiable claim and assumptions) is
   theoretical and is **not** tested by this empirical protocol. Only the
   secondary claim is.
 
@@ -75,15 +78,16 @@ verdict must resolve, not from a copied convention.
 
 ## Open holes, named
 
-1. **Closed list of datasets and baselines** — owner: the operator (r09 Open items).
-2. **The evaluation metric (Neighborhood Latent Consistency)** — now defined by
-   r09 § "The evaluation metric: neighborhood latent consistency" (Eqs. 8–9,
+1. **Closed list of datasets and baselines** — owner: the operator (r10 Open items).
+2. **The evaluation metric (Neighborhood Latent Consistency)** — defined by
+   r10 § "The evaluation metric: neighborhood latent consistency" (Eqs. 8–9,
    per-annotator, no ground truth). Its pilot — the unit (per-annotator vs the
    prototype's panel-consensus variant), the normalization of `C_a` (N0/S1/S2z/
    S2p/S3) and the panel summary (mean/median/q10/fraction-below) — runs in
-   `src/CrowdSegmenter_CT_GCE/metric_pilot.py`; the selection itself stays open
-   until the operator closes it in r10. Nothing here selects a winner.
-3. **`q`, warm-up length and refresh period** — free scalars r09 does not fix;
+   `src/CrowdSegmenter_CT_GCE/metric_pilot.py`; r10 closed the selections
+   (per-annotator unit, mean panel score with lower-decile early alarm,
+   floor-anchored presentation).
+3. **`q`, warm-up length and refresh period** — free scalars r10 does not fix;
    choosing them by outcome needs a search with its own scale, role, tie rule
    and record. `__benchmark__["search"]` is empty until then.
 4. **`wiring.py`** — `build_new`, `build_baseline`, `build_data`. The harness is
@@ -96,7 +100,7 @@ verdict must resolve, not from a copied convention.
 6. **Shard partition** — no run has been split; `__benchmark__["distribution"]`
    stays empty rather than declaring a partition nobody measured.
 7. **Identifiability constraint on the reliability branch** — resolved since
-   r06 and adopted by r09: the coupled likelihood of Eq. 7 is the constraint
+   r06, adopted by r09 and published as the selection by r10: the coupled likelihood of Eq. 7 is the constraint
    and the soft gating of Eq. 1 is the design, both selected by the synthetic
    study (rounds 1–2 of the phase log). `identifiability.py` trains the branch
    by Eq. 7; `reliability.py` still takes `Lambda` as an input and fails closed

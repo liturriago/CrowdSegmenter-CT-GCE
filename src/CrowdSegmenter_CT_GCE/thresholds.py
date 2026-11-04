@@ -40,7 +40,7 @@ import torch
 from .reliability import annotated_labels
 
 __provenance__ = {
-    "revision": "research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r09.md",
+    "revision": "research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r10.md",
     "sections": ["Estimating the truncation thresholds"],
     "equations": ["4"],
     "invariants": [

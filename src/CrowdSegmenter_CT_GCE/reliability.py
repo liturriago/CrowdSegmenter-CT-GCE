@@ -28,7 +28,7 @@ from __future__ import annotations
 import torch
 
 __provenance__ = {
-    "revision": "research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r09.md",
+    "revision": "research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r10.md",
     "sections": ["The loss", "Open items"],
     "equations": ["1", "2"],
     "invariants": [

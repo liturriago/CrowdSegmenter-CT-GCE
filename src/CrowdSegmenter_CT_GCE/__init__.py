@@ -121,7 +121,7 @@ __implementation__ = {
     # The managed revision this declaration is bound to -- the filename the
     # deliberation engine's STATUS reports as latest, confirmed by the
     # operator at the object-map gate.
-    "revision": "research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r09.md",
+    "revision": "research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r10.md",
 
     # Carried unchanged from r03's secondary claim: consensus segmentation,
     # judged per pixel against ground truth by mIoU and Dice, higher better.
@@ -133,11 +133,13 @@ __implementation__ = {
 
         # The synthetic selection pilot r05 § "Falsifiable claim and
         # assumptions" declares ("Constraint selection (synthetic study)"),
-        # with its exact declared configuration. Results are PROVISIONAL and
-        # feed the deliberation that closes the candidate selection; no
-        # candidate is the design until that deliberation publishes r06.
+        # with its exact declared configuration. r10 closed the selection:
+        # the coupled likelihood alone (Ec. 7, C3) is the constraint and the
+        # soft gating of (Ec. 1) is the design, for the reasons r10 §
+        # "Constraint selection (synthetic study)" states. The configuration
+        # below is the record of what was run.
         "syntheticSelectionPilot": {
-            "status": "provisional -- no winner is declared from the pilot",
+            "status": "decided in r10 -- C3 (Ec. 7) is the constraint, soft gating of (Ec. 1) is the design",
             "candidates": {
                 "C1": "Eq. (5): mean-reliability normalization against the "
                       "EM's per-annotator per-category budget 1 - rho_{r,k}, "
@@ -214,15 +216,16 @@ __implementation__ = {
         },
 
         # The round-2 design comparison the operator commissioned: three STUDY
-        # arms derived from Eq. (1), not the production loss. No arm is the
-        # design until the deliberation publishes r06; everything here is
-        # provisional. The world, scenarios and seeds reproduce round 1 exactly
+        # arms derived from Eq. (1), not the production loss. r10 decided it:
+        # the soft gating of (Ec. 1) is preferred over the hard-gate variants
+        # (S1/S2), which prune hard-but-clean pixels and freeze their gradient.
+        # The world, scenarios and seeds reproduce round 1 exactly
         # (same generator, same deterministic draw per (scenario, seed)), so the
         # tables are comparable; C_tilde_k are round 1's (Eq. 4 over the same
         # warm-up proxy), and phi is trained by C3 (Ec. 7) with the segmentation
         # held fixed -- the round-1 protocol, identical across arms.
         "syntheticDesignRound": {
-            "status": "provisional -- no arm is the design until r06",
+            "status": "decided in r10 -- soft gating of (Ec. 1) is the design",
             "arms": {
                 "S1": "no Lambda: the gate prunes and surviving annotations "
                       "weigh 1 -- Eq. (1) with Lambda replaced by the analytic "
@@ -290,17 +293,18 @@ __implementation__ = {
                               "15 and say so clearly"},
         },
 
-        # The r09 metric pilot (§ "The evaluation metric: neighborhood latent
+        # The metric pilot (r10 § "The evaluation metric: neighborhood latent
         # consistency" and the Metric claim paragraph): the per-annotator unit
         # of Eqs. (8)-(9) against the prototype's panel-consensus variant, over
-        # the prototype's own contamination ladder. Every selection below is
-        # PROVISIONAL and closes in the operator's r10 deliberation; nothing
-        # here declares a winner. The zero-GT decision metrics never see the
-        # supervised column, which validates only.
+        # the prototype's own contamination ladder. r10 closed every selection:
+        # the per-annotator unit over the panel-consensus variant, the mean of
+        # {C_a} as panel score with the lower decile as early alarm, and
+        # floor-anchored presentation. The zero-GT decision metrics never see
+        # the supervised column, which validates only.
         "metricPilot": {
-            "status": "provisional -- normalization and panel summary stay "
-                      "open until r10",
-            "binding": "r09 Eqs. (8)-(9), per-annotator, no ground truth; the "
+            "status": "decided in r10 -- per-annotator unit, mean panel score "
+                      "with lower-decile early alarm, floor-anchored presentation",
+            "binding": "r10 Eqs. (8)-(9), per-annotator, no ground truth; the "
                        "panel-consensus variant of the first prototype is the "
                        "comparison arm",
             "material": {

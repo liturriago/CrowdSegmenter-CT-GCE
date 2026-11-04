@@ -41,7 +41,7 @@ from dataclasses import dataclass
 import torch
 
 __provenance__ = {
-    "revision": "research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r09.md",
+    "revision": "research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r10.md",
     "sections": ["Falsifiable claim and assumptions", "Estimating the truncation thresholds"],
     "equations": ["1", "2", "3"],
     "invariants": [
