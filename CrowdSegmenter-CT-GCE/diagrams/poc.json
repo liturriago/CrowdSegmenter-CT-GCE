@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "kind": "poc",
+  "claim": "A small pilot shows that category-truncated generalized cross-entropy runs end to end and leaves evidence a person can read",
+  "focal": "s1",
+  "nodes": [
+    {
+      "id": "data",
+      "label": "Toy set",
+      "role": "state",
+      "row": "spine"
+    },
+    {
+      "id": "s1",
+      "label": "the verification report runs the suite...",
+      "role": "focal",
+      "row": "spine"
+    },
+    {
+      "id": "s2",
+      "label": "the probe notebook records the...",
+      "role": "operator",
+      "row": "spine"
+    },
+    {
+      "id": "results",
+      "label": "Convergence and pilot tables",
+      "role": "evidence",
+      "row": "evidence",
+      "under": "s1"
+    },
+    {
+      "id": "source",
+      "label": "Approved in AGREED.md, revision r10",
+      "role": "context",
+      "row": "context",
+      "near": "data"
+    }
+  ],
+  "edges": [
+    {
+      "from": "data",
+      "to": "s1",
+      "semantics": "data",
+      "prominence": "primary"
+    },
+    {
+      "from": "s1",
+      "to": "s2",
+      "semantics": "data",
+      "prominence": "primary"
+    },
+    {
+      "from": "s1",
+      "to": "results",
+      "semantics": "data",
+      "prominence": "secondary"
+    }
+  ],
+  "sources": [
+    "AGREED.md",
+    "proposals/research-concept-category-truncated-generalized-cross-entropy-for-semantic-se-r10.md"
+  ]
+}
