@@ -204,6 +204,10 @@ class BaseOptunaTuner(ABC):
             set_seed(self.config.training.seed + trial.number)
             trial_config = self._prepare_trial_config()
             params = self._suggest_params(trial, trial_config)
+            print(
+                f"\n[Trial {trial.number + 1}/{self.n_trials}] params={params}",
+                flush=True,
+            )
 
             model = self._build_model().to(self.device)
             criterion = self._build_criterion(params).to(self.device)

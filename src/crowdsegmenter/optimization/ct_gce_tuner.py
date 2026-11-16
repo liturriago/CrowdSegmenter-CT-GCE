@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+import torch
 import torch.nn as nn
 
 from crowdsegmenter.config import TrainConfig
@@ -45,6 +46,7 @@ class CTGCETuner(BaseOptunaTuner):
             seed=seed,
             data_dir=data_dir,
         )
+        self._cached_rho_hat: Optional[torch.Tensor] = None
 
     def _suggest_params(self, trial: Any, trial_config: TrainConfig) -> Dict[str, Any]:
         space = self._search_space()
@@ -89,7 +91,7 @@ class CTGCETuner(BaseOptunaTuner):
         trial_config: TrainConfig,
     ) -> OptunaCTGCETrainer:
         assert isinstance(criterion, CTGCELoss)
-        return OptunaCTGCETrainer(
+        trainer = OptunaCTGCETrainer(
             trial=trial,
             model=model,
             train_loader=self.train_loader,
@@ -97,4 +99,9 @@ class CTGCETuner(BaseOptunaTuner):
             criterion=criterion,
             device=self.device,
             config=trial_config,
+            precomputed_rho_hat=self._cached_rho_hat,
         )
+        if self._cached_rho_hat is None:
+            self._cached_rho_hat = trainer._estimate_dataset_noise_rates()
+            trainer.rho_hat = self._cached_rho_hat.clone()
+        return trainer

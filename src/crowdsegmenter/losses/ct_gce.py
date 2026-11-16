@@ -130,14 +130,23 @@ class CTGCELoss(nn.Module):
     def estimate_noise_rates(
         self,
         annotations: Tensor,
-        max_iter: int = 200,
-        tol: float = 1e-8,
+        max_iter: int = 100,
+        tol: float = 1e-6,
         smoothing: float = 1e-8,
+        max_pixels: Optional[int] = 250_000,
     ) -> Tensor:
-        """Estimate per-category noise rates ``rho_hat [K]`` via Dawid-Skene EM (Eq. 3)."""
+        """Estimate per-category noise rates ``rho_hat [K]`` via Dawid-Skene EM (Eq. 3).
+
+        When total pixel count exceeds ``max_pixels``, applies deterministic
+        strided subsampling so CPU EM stays sub-second on large datasets.
+        """
         y, m = self.unpack_annotations(annotations)
         labels = y.argmax(dim=-1).reshape(self.R, -1).cpu()
         mask = (m != 0).reshape(self.R, -1).cpu()
+        if max_pixels is not None and labels.shape[1] > max_pixels:
+            step = max(1, labels.shape[1] // max_pixels)
+            labels = labels[:, ::step]
+            mask = mask[:, ::step]
         ds = fit_dawid_skene(labels, mask, self.K, max_iter=max_iter, tol=tol, smoothing=smoothing)
         return ds_rho_hat(ds["posterior"], labels, mask, self.K)
 
@@ -147,11 +156,22 @@ class CTGCELoss(nn.Module):
         seg_pred: Tensor,
         annotations: Tensor,
         rho_hat: Tensor,
+        max_pixels: Optional[int] = 500_000,
     ) -> Calibration:
         """Calibrate Eq. (4) per-category truncation cutoffs ``C_k = max(1/K, F_k^{-1}(rho_hat_k))``."""
         p = self._prepare_probabilities(seg_pred.detach()).cpu()
         y, m = self.unpack_annotations(annotations)
-        return calibrate_cutoffs(p, y.cpu(), m.cpu(), rho_hat.cpu())
+        y_cpu, m_cpu = y.cpu(), m.cpu()
+
+        p_flat = p.reshape(-1, 1, self.K)
+        y_flat = y_cpu.reshape(self.R, -1, 1, self.K)
+        m_flat = m_cpu.reshape(self.R, -1, 1)
+        if max_pixels is not None and p_flat.shape[0] > max_pixels:
+            step = max(1, p_flat.shape[0] // max_pixels)
+            p_flat = p_flat[::step]
+            y_flat = y_flat[:, ::step]
+            m_flat = m_flat[:, ::step]
+        return calibrate_cutoffs(p_flat, y_flat, m_flat, rho_hat.cpu())
 
     def forward(
         self,

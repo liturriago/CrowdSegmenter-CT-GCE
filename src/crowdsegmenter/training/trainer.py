@@ -268,10 +268,17 @@ class CTGCETrainer(_BaseTrainer):
         criterion: CTGCELoss,
         device: torch.device,
         config: Any,
+        precomputed_rho_hat: Optional[torch.Tensor] = None,
+        max_ds_pixels: int = 250_000,
+        max_calib_pixels: int = 500_000,
     ) -> None:
         super().__init__(model, train_loader, val_loader, device, config)
         self.criterion = criterion
-        self.rho_hat: Optional[torch.Tensor] = None
+        self.rho_hat: Optional[torch.Tensor] = (
+            precomputed_rho_hat.clone() if precomputed_rho_hat is not None else None
+        )
+        self.max_ds_pixels = max_ds_pixels
+        self.max_calib_pixels = max_calib_pixels
         self.cutoffs: Optional[torch.Tensor] = None
         self.history["branch_loss"] = []
 
@@ -282,15 +289,34 @@ class CTGCETrainer(_BaseTrainer):
             lr=getattr(config, "branch_lr", config.lr),
         )
 
+    @staticmethod
+    def _stride_batch_masks(masks: torch.Tensor, target_pixels: int) -> torch.Tensor:
+        """Flatten ``[B, C, H, W]`` to ``[N_sub, C, 1, 1]`` with deterministic stride."""
+        b, c, h, w = masks.shape
+        flat = masks.permute(0, 2, 3, 1).reshape(-1, c)
+        step = max(1, flat.shape[0] // max(target_pixels, 1))
+        return flat[::step].unsqueeze(-1).unsqueeze(-1).cpu()
+
     @torch.no_grad()
     def _estimate_dataset_noise_rates(self) -> torch.Tensor:
         """Estimate global ``rho_hat [K]`` over the training split using Dawid-Skene EM."""
-        all_masks = [batch[1].cpu() for batch in self.train_loader]
-        stacked = torch.cat(all_masks, dim=0)
-        rho = self.criterion.estimate_noise_rates(stacked)
+        t0 = time.time()
+        print("[Dawid-Skene] Estimating per-category noise rates rho_hat...", flush=True)
+        n_batches = max(len(self.train_loader), 1)
+        per_batch = max(1, self.max_ds_pixels // n_batches)
+        sampled_masks = [
+            self._stride_batch_masks(batch[1], per_batch) for batch in self.train_loader
+        ]
+        stacked = torch.cat(sampled_masks, dim=0)
+        rho = self.criterion.estimate_noise_rates(stacked, max_pixels=self.max_ds_pixels)
         if not bool(torch.isfinite(rho).all()):
             # Fallback to 0.0 only for unsupported categories if a small subset lacks a class
             rho = torch.nan_to_num(rho, nan=0.0)
+        print(
+            f"[Dawid-Skene] rho_hat = {[round(float(v), 4) for v in rho]} "
+            f"({time.time() - t0:.2f}s)",
+            flush=True,
+        )
         return rho
 
     @torch.no_grad()
@@ -299,22 +325,31 @@ class CTGCETrainer(_BaseTrainer):
         if self.rho_hat is None:
             self.rho_hat = self._estimate_dataset_noise_rates()
 
+        t0 = time.time()
         self.model.eval()
+        n_batches = max(len(self.train_loader), 1)
+        per_batch = max(1, self.max_calib_pixels // n_batches)
         all_preds: List[torch.Tensor] = []
         all_masks: List[torch.Tensor] = []
         for batch in self.train_loader:
             images = batch[0].to(self.device)
             masks = batch[1]
             seg_pred, _ = self.model(images, multihot=None)
-            all_preds.append(seg_pred.cpu())
-            all_masks.append(masks.cpu())
+            all_preds.append(self._stride_batch_masks(seg_pred, per_batch))
+            all_masks.append(self._stride_batch_masks(masks, per_batch))
 
         calib = self.criterion.calibrate(
             torch.cat(all_preds, dim=0),
             torch.cat(all_masks, dim=0),
             self.rho_hat,
+            max_pixels=self.max_calib_pixels,
         )
         self.cutoffs = calib.cutoffs.to(self.device)
+        print(
+            f"[Calibration] C_k = {[round(float(v), 4) for v in self.cutoffs]} "
+            f"({time.time() - t0:.2f}s)",
+            flush=True,
+        )
         return self.cutoffs
 
     def _init_seg_optimizer(self, phase: Optional[int]) -> None:
@@ -332,7 +367,8 @@ class CTGCETrainer(_BaseTrainer):
         calib_interval = int(getattr(self.config, "calibration_interval", 1))
         epochs_phases = self._resolve_phases()
 
-        self.rho_hat = self._estimate_dataset_noise_rates()
+        if self.rho_hat is None:
+            self.rho_hat = self._estimate_dataset_noise_rates()
 
         if not epochs_phases:
             self._init_seg_optimizer(phase=None)
@@ -350,8 +386,11 @@ class CTGCETrainer(_BaseTrainer):
             ):
                 self._refresh_cutoffs()
 
-            print(f"\nEpoch {epoch + 1}/{epochs} ({'Warm-up' if is_warmup else 'CT-GCE'})")
-            print("-" * 40)
+            print(
+                f"\nEpoch {epoch + 1}/{epochs} ({'Warm-up' if is_warmup else 'CT-GCE'})",
+                flush=True,
+            )
+            print("-" * 40, flush=True)
 
             train_loss, branch_loss, train_dice, epoch_time = self._train_epoch(is_warmup)
             self.history["train_loss"].append(train_loss)
@@ -360,7 +399,8 @@ class CTGCETrainer(_BaseTrainer):
             print(
                 f"[Train] Time: {format_time(epoch_time)} | "
                 f"Seg Loss: {train_loss:.4f} | Branch C3: {branch_loss:.4f} | "
-                f"Dice: {train_dice:.4f}"
+                f"Dice: {train_dice:.4f}",
+                flush=True,
             )
 
             val_dice_prob = self.evaluate(self.val_loader, prefix="Val (Prob.)")

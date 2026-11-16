@@ -3,12 +3,23 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Type
 
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+
+
+def _enable_realtime_logs() -> None:
+    """Ensure stdout/stderr flush line-by-line in Colab and non-TTY runners."""
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(line_buffering=True)
+            except Exception:
+                pass
 
 from crowdsegmenter.config import ExperimentConfig
 from crowdsegmenter.data.loader import CrowdSegmenterDataLoader
@@ -84,6 +95,7 @@ def run_training_experiment(
     output_dir: Optional[str | Path] = None,
 ) -> Dict[str, Any]:
     """Execute training, test-set evaluation, and artifact serialization."""
+    _enable_realtime_logs()
     cfg = ExperimentConfig.from_yaml(config_path)
     if data_dir is not None:
         cfg.data.data_dir = str(data_dir)
@@ -159,6 +171,8 @@ def run_optimization_cli(
     data_dir: Optional[str | Path] = None,
 ) -> Dict[str, Any]:
     """Run an Optuna tuner from CLI args and optionally export matplotlib plots."""
+    _enable_realtime_logs()
+    print(f"\nLoading dataset & initializing {label} tuner...", flush=True)
     tuner = tuner_cls(
         config_path=config_path,
         n_trials=n_trials,
