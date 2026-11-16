@@ -291,10 +291,10 @@ def test_experiment_notebooks_are_valid_and_reference_real_files() -> None:
         "ctgce/optimize_riga_ctgce.ipynb",
         "ctgce/train_oxfordiiitpet_ctgce.ipynb",
         "ctgce/train_riga_ctgce.ipynb",
-        "tgce_ssps/optimize_oxfordiiitpet_tgce_spss.ipynb",
-        "tgce_ssps/optimize_riga_tgce_spss.ipynb",
-        "tgce_ssps/train_oxfordiiitpet_tgce_spss.ipynb",
-        "tgce_ssps/train_riga_tgce_spss.ipynb",
+        "tgce_ssps/optimize_oxfordiiitpet_tgce_ssps.ipynb",
+        "tgce_ssps/optimize_riga_tgce_ssps.ipynb",
+        "tgce_ssps/train_oxfordiiitpet_tgce_ssps.ipynb",
+        "tgce_ssps/train_riga_tgce_ssps.ipynb",
     }
     assert rel == expected
     for nb_path in nb_paths:
