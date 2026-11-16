@@ -37,7 +37,7 @@ def run_annotharmony_experiment(
             smooth=cfg.training.smooth,
         ),
         trainer_cls=Trainer,
-        weights_filename="annot_harmony_final.pth",
+        weights_filename="tgce_ssps_final.pth",
         label="AnnotHarmony",
         data_dir=data_dir,
         output_dir=output_dir,
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config",
         type=str,
-        default="configs/training/annotharmony/oxfordiiitpet.yaml",
+        default="configs/training/tgce_ssps/oxfordiiitpet.yaml",
         help="Path to the YAML experiment configuration file.",
     )
     parser.add_argument("--data", type=str, default=None, help="Override data_dir.")

@@ -25,7 +25,8 @@ from crowdsegmenter.utils.ablation import (
 )
 from scripts.evaluate_ablation import compare_saved_results, run_ct_gce_ablation_suite
 from scripts.evaluate_baselines import run_baseline_evaluation
-from scripts.train_annotharmony import run_annotharmony_experiment
+from scripts.evaluate_benchmark import run_benchmark_evaluation
+from scripts.train_tgce_ssps import run_annotharmony_experiment
 from scripts.train_crowdseg import run_crowdseg_experiment
 from scripts.train_ctgce import run_ctgce_experiment
 
@@ -202,7 +203,7 @@ def test_train_eval_baselines_and_ablation_end_to_end(tmp_path: Path) -> None:
     run_crowdseg_experiment(cs_cfg)
     ct_summary = run_ctgce_experiment(ct_cfg)
 
-    assert (tmp_path / "out_ah" / "annot_harmony_final.pth").is_file()
+    assert (tmp_path / "out_ah" / "tgce_ssps_final.pth").is_file()
     assert (tmp_path / "out_cs" / "crowdseg_final.pth").is_file()
     assert (tmp_path / "out_ct" / "ct_gce_final.pth").is_file()
     assert "rho_hat" in ct_summary and "cutoffs" in ct_summary
@@ -224,7 +225,39 @@ def test_train_eval_baselines_and_ablation_end_to_end(tmp_path: Path) -> None:
     assert len(comp_rows) == 20  # 5 methods * 4 metrics
     assert (tmp_path / "cmp_out" / "ablation_gt.csv").is_file()
 
-    # 4. CT-GCE component ablation suite
+    # 4. Unified 5-method benchmark from saved checkpoints + paired t-test/Wilcoxon
+    bench_out = tmp_path / "benchmark_out"
+    bench_payload = run_benchmark_evaluation(
+        ctgce_weights=tmp_path / "out_ct" / "ct_gce_final.pth",
+        annotharmony_weights=tmp_path / "out_ah" / "tgce_ssps_final.pth",
+        crowdseg_weights=tmp_path / "out_cs" / "crowdseg_final.pth",
+        dataset="oxfordiiitpet",
+        config_overrides={
+            "CT-GCE": ct_cfg,
+            "Annot-Harmony": ah_cfg,
+            "CrowdSeg": cs_cfg,
+            "MV": mv_cfg,
+            "Spatial-STAPLE": st_cfg,
+        },
+        data_dir=data_dir,
+        output_dir=bench_out,
+    )
+    assert set(bench_payload["methods"].keys()) == {
+        "CT-GCE",
+        "Annot-Harmony",
+        "CrowdSeg",
+        "MV",
+        "Spatial-STAPLE",
+    }
+    assert len(bench_payload["comparisons"]["gt"]) == 20
+    assert len(bench_payload["comparisons"]["probabilistic"]) == 20
+    assert "ttest_p" in bench_payload["comparisons"]["gt"][0]
+    assert "ttest_p_adj" in bench_payload["comparisons"]["gt"][0]
+    assert (bench_out / "benchmark_summary.json").is_file()
+    assert (bench_out / "benchmark_gt.csv").is_file()
+    assert (bench_out / "benchmark_probabilistic.csv").is_file()
+
+    # 5. CT-GCE component ablation suite
     ablation_payload = run_ct_gce_ablation_suite(ct_cfg, output_dir=tmp_path / "ablation_suite")
     assert set(ablation_payload["arms"].keys()) == {
         "plain_gce",
@@ -241,9 +274,10 @@ def test_scripts_cli_help_entrypoints() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     for script in (
         "scripts/train_ctgce.py",
-        "scripts/train_annotharmony.py",
+        "scripts/train_tgce_ssps.py",
         "scripts/train_crowdseg.py",
         "scripts/evaluate_baselines.py",
+        "scripts/evaluate_benchmark.py",
         "scripts/evaluate_ablation.py",
         "scripts/optimize_ct_gce.py",
         "scripts/optimize_tgce_ssps.py",
@@ -283,6 +317,8 @@ def test_experiment_notebooks_are_valid_and_reference_real_files() -> None:
     expected = {
         "baselines/oxfordiiitpet.ipynb",
         "baselines/riga.ipynb",
+        "benchmark/oxfordiiitpet.ipynb",
+        "benchmark/riga.ipynb",
         "crowdseg/optimize_oxfordiiitpet_crowdseg.ipynb",
         "crowdseg/optimize_riga_crowdseg.ipynb",
         "crowdseg/train_oxfordiiitpet_crowdseg.ipynb",

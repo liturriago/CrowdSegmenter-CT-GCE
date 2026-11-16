@@ -33,8 +33,8 @@ def test_expected_training_configs_exist() -> None:
         "spatial_staple/riga.yaml",
         "crowdseg/oxfordiiitpet.yaml",
         "crowdseg/riga.yaml",
-        "annotharmony/oxfordiiitpet.yaml",
-        "annotharmony/riga.yaml",
+        "tgce_ssps/oxfordiiitpet.yaml",
+        "tgce_ssps/riga.yaml",
         "ctgce/oxfordiiitpet.yaml",
         "ctgce/riga.yaml",
     }
@@ -46,8 +46,8 @@ def test_expected_optimization_configs_exist() -> None:
     expected = {
         "crowdseg/oxfordiiitpet.yaml",
         "crowdseg/riga.yaml",
-        "annotharmony/oxfordiiitpet.yaml",
-        "annotharmony/riga.yaml",
+        "tgce_ssps/oxfordiiitpet.yaml",
+        "tgce_ssps/riga.yaml",
         "ctgce/oxfordiiitpet.yaml",
         "ctgce/riga.yaml",
     }

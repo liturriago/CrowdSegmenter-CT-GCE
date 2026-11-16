@@ -40,7 +40,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config",
         type=str,
-        default="configs/optimization/annotharmony/oxfordiiitpet.yaml",
+        default="configs/optimization/tgce_ssps/oxfordiiitpet.yaml",
         help="Path to the optimization YAML config.",
     )
     parser.add_argument("--data", type=str, default=None, help="Override data_dir.")
