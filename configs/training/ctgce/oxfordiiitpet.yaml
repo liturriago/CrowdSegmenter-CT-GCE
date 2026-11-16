@@ -32,7 +32,7 @@ model:
 
 training:
   model_name: "CT-GCE"
-  epochs: 40
+  epochs: 25
   lr: 1e-3
   transfer_lr: 1e-4
   branch_lr: 1e-3
@@ -45,8 +45,8 @@ training:
   smooth: 1e-8
   epochs_phases: [0, 5, 10, 15, 20]
   gamma: 0.94
-  ctgce_q: 0.7
-  warmup_epochs: 5
+  ctgce_q: 0.4333407057741526
+  warmup_epochs: 4
   calibration_interval: 1
   n_epochs_per_trial: 5
   q_search_low: 0.1

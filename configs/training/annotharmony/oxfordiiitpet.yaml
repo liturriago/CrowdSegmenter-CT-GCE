@@ -32,7 +32,7 @@ model:
 
 training:
   model_name: "Annot-Harmony"
-  epochs: 40
+  epochs: 25
   lr: 1e-3
   transfer_lr: 1e-4
   threshold: 0.5
@@ -44,7 +44,7 @@ training:
   smooth: 1e-8
   epochs_phases: [0, 5, 10, 15, 20]
   gamma: 0.94
-  tgce_q: 0.9461357327048254
+  tgce_q: 0.16888977669743332
   tgce_lambda: 1.0
   n_epochs_per_trial: 5
   q_search_low: 0.1

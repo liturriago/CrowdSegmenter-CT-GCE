@@ -31,7 +31,7 @@ model:
 
 training:
   model_name: "CrowdSeg"
-  epochs: 40
+  epochs: 25
   lr: 1e-3
   transfer_lr: 1e-4
   threshold: 0.5
@@ -44,7 +44,7 @@ training:
   epochs_phases: [0, 5, 10, 15, 20]
   gamma: 0.94
   min_trace: true
-  alpha: 0.3204770944804487
+  alpha: 0.027917585056918978
   n_epochs_per_trial: 5
   alpha_search_low: 0.01
   alpha_search_high: 2.0
