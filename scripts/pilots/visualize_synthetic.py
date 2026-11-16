@@ -8,7 +8,7 @@ source of truth -- `tests/` remains the source of truth.
 Run it with the target repository's own interpreter:
 
     cd implementations/CrowdSegmenter-CT-GCE
-    .venv/bin/python tools/visualize_synthetic.py
+    .venv/bin/python scripts/pilots/visualize_synthetic.py
 
 Outputs, under `results/synthetic/`:
     01-algebraic-fixture.png   the hand-built Eq. (1)-(2) fixture
@@ -32,7 +32,7 @@ import torch
 from matplotlib.colors import ListedColormap
 from matplotlib.patches import Patch
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]  # scripts/pilots/ -> repo root
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "tests"))
 

@@ -1,0 +1,68 @@
+data:
+  data_dir: "/kaggle/input/datasets/lucasiturriago/oxfordiiitpet-multi-annotators"
+  partitions: ["Train", "Valid", "Test"]
+  images_folder: "patches"
+  masks_folder: "masks"
+  ground_truth_folder: "ground_truth"
+  load_annotators: true
+  load_ground_truth: true
+  num_classes: 2
+  num_annotators: 3
+  image_size: [224, 224]
+  ignored_value: 0.6
+  normalize: true
+  transforms: true
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+  batch_size: 16
+  num_workers: 4
+  pin_memory: true
+  prefetch_factor: 2
+
+model:
+  num_annotators: 3
+  in_channels: 3
+  num_classes: 2
+  image_size: 224
+  pretrained: true
+  decoder_channels: [256, 128, 64, 64]
+  use_residual: true
+  seg_head_activation: "softmax"
+  annotator_activation: "sigmoid"
+
+training:
+  model_name: "CT-GCE"
+  epochs: 8
+  lr: 1e-3
+  transfer_lr: 1e-4
+  branch_lr: 1e-3
+  threshold: 0.5
+  probabilistic_thresholds: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+  ground_truth: true
+  num_classes: 2
+  num_annotators: 3
+  ignored_value: 0.6
+  smooth: 1e-8
+  epochs_phases: [0, 2, 4, 6]
+  gamma: 0.94
+  warmup_epochs: 2
+  calibration_interval: 1
+  seed: 42
+  device: "cuda"
+
+optimization:
+  n_trials: 30
+  n_epochs_per_trial: 8
+  study_name: "ct_gce_oxford_iiitpet"
+  q_search_low: 0.1
+  q_search_high: 0.99
+  tune_schedule: true
+  warmup_search_low: 1
+  warmup_search_high: 4
+  calib_interval_choices: [1, 2, 3]
+
+experiment:
+  name: "optuna_ct_gce_oxford_iiitpet"
+  version: 1
+  output_dir: "results/optuna/ct_gce/oxford_iiitpet"
+  save_results: true
