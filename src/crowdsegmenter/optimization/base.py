@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Tuple
@@ -140,8 +141,12 @@ class BaseOptunaTuner(ABC):
         data_manager = CrowdSegmenterDataLoader(self.config.data, mode=self.data_mode)
         self.train_loader, self.val_loader, _ = data_manager.get_split_loaders()
 
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        db_path = (self.output_dir / "optuna_study.db").resolve()
         self.study = opt.create_study(
             study_name=self.study_name,
+            storage=f"sqlite:///{db_path}",
+            load_if_exists=True,
             direction="maximize",
             sampler=opt.samplers.TPESampler(seed=self.seed),
             pruner=opt.pruners.MedianPruner(),
@@ -150,6 +155,7 @@ class BaseOptunaTuner(ABC):
         self.results: List[Dict[str, Any]] = []
         self.best_model_weights: Optional[Dict[str, torch.Tensor]] = None
         self.overall_best_dice: float = -1.0
+        self._weights_dirty: bool = False
 
     @abstractmethod
     def _suggest_params(self, trial: Any, trial_config: TrainConfig) -> Dict[str, Any]:
@@ -220,6 +226,7 @@ class BaseOptunaTuner(ABC):
             if best_val_dice > self.overall_best_dice:
                 self.overall_best_dice = best_val_dice
                 self.best_model_weights = trainer.best_model_weights
+                self._weights_dirty = True
 
             return float(best_val_dice)
 
@@ -233,14 +240,11 @@ class BaseOptunaTuner(ABC):
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
 
-    def run(self) -> Dict[str, Any]:
-        """Run the full optimization study, evaluate the best checkpoint, and persist JSON."""
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.study.optimize(self.objective, n_trials=self.n_trials)
-
+    def _build_results_dict(self) -> Dict[str, Any]:
+        """Serialize current study trials and best parameters into a dict."""
         sorted_trials = sorted(
             self.study.trials,
-            key=lambda t: t.value if t.value is not None else 0.0,
+            key=lambda t: t.value if t.value is not None else -1.0,
             reverse=True,
         )
 
@@ -256,9 +260,67 @@ class BaseOptunaTuner(ABC):
                 entry[self.primary_param_name] = t.params[self.primary_param_name]
             trials_data.append(entry)
 
-        best_trial = self.study.best_trial
-        best_params = dict(best_trial.params)
-        best_val_dice = float(best_trial.value) if best_trial.value is not None else 0.0
+        best_params: Dict[str, Any] = {}
+        best_val_dice = 0.0
+        try:
+            best_trial = self.study.best_trial
+            best_params = dict(best_trial.params)
+            best_val_dice = float(best_trial.value) if best_trial.value is not None else 0.0
+        except ValueError:
+            # No completed trial yet (e.g., all pruned/failed so far)
+            pass
+
+        results_dict: Dict[str, Any] = {
+            "best_params": best_params,
+            "best_val_dice": best_val_dice,
+            "trials": trials_data,
+        }
+        if self.primary_param_name in best_params:
+            results_dict[f"best_{self.primary_param_name}"] = best_params[self.primary_param_name]
+        return results_dict
+
+    def _save_results_json(self) -> Dict[str, Any]:
+        """Atomically write ``results.json`` to ``self.output_dir``."""
+        results_dict = self._build_results_dict()
+        results_path = self.output_dir / "results.json"
+        tmp_path = self.output_dir / "results.json.tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(results_dict, f, indent=4)
+        os.replace(tmp_path, results_path)
+        return results_dict
+
+    def _on_trial_end(self, study: Any, trial: Any) -> None:
+        """Persist incremental ``results.json`` and best checkpoint after every trial."""
+        results_dict = self._save_results_json()
+        if self._weights_dirty and self.best_model_weights is not None:
+            torch.save(self.best_model_weights, self.output_dir / "best_trial_weights.pth")
+            self._weights_dirty = False
+        print(
+            f"[Trial {trial.number + 1} saved] state={trial.state.name} | "
+            f"value={trial.value} | best_so_far={results_dict['best_val_dice']:.4f}",
+            flush=True,
+        )
+
+    def run(self) -> Dict[str, Any]:
+        """Run the optimization study (resumable via SQLite) and persist JSON after each trial."""
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        existing = sum(
+            1 for t in self.study.trials if t.state.name in ("COMPLETE", "PRUNED")
+        )
+        remaining = max(0, self.n_trials - existing)
+        if existing > 0:
+            print(
+                f"[Optuna] Resuming '{self.study_name}': {existing} trials already in DB, "
+                f"running {remaining} remaining.",
+                flush=True,
+            )
+
+        if remaining > 0:
+            self.study.optimize(
+                self.objective,
+                n_trials=remaining,
+                callbacks=[self._on_trial_end],
+            )
 
         if self.best_model_weights is not None:
             best_model = self._build_model().to(self.device)
@@ -274,16 +336,4 @@ class BaseOptunaTuner(ABC):
                 gt_metrics = tracker.evaluation_gt(best_model, self.val_loader, str(self.device))
                 tracker.print_full_report("Best Trial Val — Ground Truth", gt_metrics, class_names)
 
-        results_dict: Dict[str, Any] = {
-            "best_params": best_params,
-            "best_val_dice": best_val_dice,
-            "trials": trials_data,
-        }
-        if self.primary_param_name in best_params:
-            results_dict[f"best_{self.primary_param_name}"] = best_params[self.primary_param_name]
-
-        results_path = self.output_dir / "results.json"
-        with open(results_path, "w", encoding="utf-8") as f:
-            json.dump(results_dict, f, indent=4)
-
-        return results_dict
+        return self._save_results_json()

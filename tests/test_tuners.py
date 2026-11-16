@@ -56,16 +56,17 @@ class _FakeTrial:
 
 
 class _FakeStudy:
-    def __init__(self) -> None:
-        self.trials: List[_FakeTrial] = []
+    def __init__(self, initial_trials: List[_FakeTrial] | None = None) -> None:
+        self.trials: List[_FakeTrial] = list(initial_trials or [])
 
     def ask(self) -> _FakeTrial:
         t = _FakeTrial(number=len(self.trials))
         self.trials.append(t)
         return t
 
-    def optimize(self, objective, n_trials: int) -> None:
-        for i in range(n_trials):
+    def optimize(self, objective, n_trials: int, callbacks=None) -> None:
+        start = len(self.trials)
+        for i in range(start, start + n_trials):
             t = _FakeTrial(number=i)
             try:
                 t.value = objective(t)
@@ -73,18 +74,31 @@ class _FakeStudy:
             except _FakeTrialPruned:
                 t.state = SimpleNamespace(name="PRUNED")
             self.trials.append(t)
+            for cb in callbacks or ():
+                cb(self, t)
 
     @property
     def best_trial(self) -> _FakeTrial:
         completed = [t for t in self.trials if t.value is not None]
+        if not completed:
+            raise ValueError("No trials are completed yet.")
         return max(completed, key=lambda t: t.value or 0.0)
 
 
-def _make_fake_optuna():
+def _make_fake_optuna(studies: Dict[str, _FakeStudy] | None = None):
+    store = studies if studies is not None else {}
+
+    def _create_study(study_name="study", load_if_exists=False, **kwargs):
+        if load_if_exists and study_name in store:
+            return store[study_name]
+        st = _FakeStudy()
+        store[study_name] = st
+        return st
+
     return SimpleNamespace(
         Trial=_FakeTrial,
         TrialPruned=_FakeTrialPruned,
-        create_study=lambda **kwargs: _FakeStudy(),
+        create_study=_create_study,
         samplers=SimpleNamespace(TPESampler=lambda seed=42: seed),
         pruners=SimpleNamespace(MedianPruner=lambda: None),
     )
@@ -253,3 +267,37 @@ def test_tuner_reads_optimization_config_section(dummy_loaders, tmp_path: Path) 
         assert tuner.n_trials == 30
         assert tuner.n_epochs_per_trial == 8
         assert tuner.study_name == "ct_gce_oxford_iiitpet"
+
+
+def test_incremental_persistence_per_trial_and_resume(
+    tiny_config_path: str,
+    dummy_loaders,
+    tmp_path: Path,
+) -> None:
+    store: Dict[str, _FakeStudy] = {}
+    fake_optuna = _make_fake_optuna(store)
+    out_dir = tmp_path / "resume_out"
+
+    with patch.object(opt_base, "optuna", fake_optuna):
+        # Run 1 trial first
+        t1 = CTGCETuner(
+            config_path=tiny_config_path,
+            n_trials=1,
+            n_epochs_per_trial=1,
+            study_name="resume_study",
+            output_dir=str(out_dir),
+        )
+        t1.run()
+        assert (out_dir / "results.json").is_file()
+        assert (out_dir / "best_trial_weights.pth").is_file()
+
+        # Resume up to n_trials=3 -> only 2 additional trials should execute
+        t2 = CTGCETuner(
+            config_path=tiny_config_path,
+            n_trials=3,
+            n_epochs_per_trial=1,
+            study_name="resume_study",
+            output_dir=str(out_dir),
+        )
+        res = t2.run()
+        assert len(res["trials"]) == 3
