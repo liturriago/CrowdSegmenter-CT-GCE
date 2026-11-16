@@ -281,22 +281,20 @@ def test_experiment_notebooks_are_valid_and_reference_real_files() -> None:
     nb_paths = sorted(nb_root.rglob("*.ipynb"))
     rel = {p.relative_to(nb_root).as_posix() for p in nb_paths}
     expected = {
-        "annotharmony/optimize_oxfordiiitpet.ipynb",
-        "annotharmony/optimize_riga.ipynb",
-        "annotharmony/train_oxfordiiitpet.ipynb",
-        "annotharmony/train_riga.ipynb",
-        "crowdseg/optimize_oxfordiiitpet.ipynb",
-        "crowdseg/optimize_riga.ipynb",
-        "crowdseg/train_oxfordiiitpet.ipynb",
-        "crowdseg/train_riga.ipynb",
-        "ctgce/optimize_oxfordiiitpet.ipynb",
-        "ctgce/optimize_riga.ipynb",
-        "ctgce/train_oxfordiiitpet.ipynb",
-        "ctgce/train_riga.ipynb",
-        "ctgce/ablation_oxfordiiitpet.ipynb",
-        "ctgce/ablation_riga.ipynb",
         "baselines/oxfordiiitpet.ipynb",
         "baselines/riga.ipynb",
+        "crowdseg/optimize_oxfordiiitpet_crowdseg.ipynb",
+        "crowdseg/optimize_riga_crowdseg.ipynb",
+        "crowdseg/train_oxfordiiitpet_crowdseg.ipynb",
+        "crowdseg/train_riga_crowdseg.ipynb",
+        "ctgce/optimize_oxfordiiitpet_ctgce.ipynb",
+        "ctgce/optimize_riga_ctgce.ipynb",
+        "ctgce/train_oxfordiiitpet_ctgce.ipynb",
+        "ctgce/train_riga_ctgce.ipynb",
+        "tgce_ssps/optimize_oxfordiiitpet_tgce_spss.ipynb",
+        "tgce_ssps/optimize_riga_tgce_spss.ipynb",
+        "tgce_ssps/train_oxfordiiitpet_tgce_spss.ipynb",
+        "tgce_ssps/train_riga_tgce_spss.ipynb",
     }
     assert rel == expected
     for nb_path in nb_paths:
