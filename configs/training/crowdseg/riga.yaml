@@ -30,7 +30,7 @@ model:
 
 training:
   model_name: "CrowdSeg"
-  epochs: 30
+  epochs: 25
   lr: 1e-3
   transfer_lr: 1e-4
   threshold: 0.5
