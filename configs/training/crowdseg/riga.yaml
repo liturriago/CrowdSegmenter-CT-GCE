@@ -44,7 +44,7 @@ training:
   epochs_phases: [0, 5, 10, 15, 20]
   gamma: 0.94
   min_trace: true
-  alpha: 0.6347406147295978
+  alpha: 0.07173605453905725
   n_epochs_per_trial: 5
   alpha_search_low: 0.01
   alpha_search_high: 2.0
