@@ -176,10 +176,15 @@ def test_dataset_dataloader_and_metrics(tmp_path: Path) -> None:
     assert batch[2].shape == (2, 3)
     assert batch[3].shape == (2, 2, 32, 32)
 
-    # Check CrowdSeg mode yields one-hot anns_ids
-    cs_ds = CrowdSegmenterDataset(d_cfg, partition="Train", mode="CrowdSeg")
-    _, _, cs_ids, _ = cs_ds[0]
-    assert float(cs_ids.sum().item()) == 1.0
+    # Check CrowdSeg mode: Train samples 1 annotator (one-hot), Valid/Test load all annotators
+    cs_dm = CrowdSegmenterDataLoader(d_cfg, mode="CrowdSeg")
+    cs_train, cs_val, cs_test = cs_dm.get_split_loaders()
+    _, _, cs_tr_ids, _ = next(iter(cs_train))
+    _, _, cs_va_ids, _ = next(iter(cs_val))
+    _, _, cs_te_ids, _ = next(iter(cs_test))
+    assert torch.allclose(cs_tr_ids.sum(dim=1), torch.ones(cs_tr_ids.shape[0]))
+    assert torch.allclose(cs_va_ids.sum(dim=1), torch.full((cs_va_ids.shape[0],), 3.0))
+    assert torch.allclose(cs_te_ids.sum(dim=1), torch.full((cs_te_ids.shape[0],), 3.0))
 
     # Check MetricTracker probability mask respects k*A + r layout
     t_cfg = TrainConfig(num_classes=2, num_annotators=3, ignored_value=0.6)

@@ -36,6 +36,10 @@ from crowdsegmenter.utils.ablation import (
     load_per_sample_npz,
     save_ablation_report,
 )
+from crowdsegmenter.utils.metrics import (
+    compute_loader_panel_nlc_metrics,
+    extract_prepared_dense_features,
+)
 from crowdsegmenter.utils.reproducibility import set_seed
 from scripts._cli_utils import _enable_realtime_logs, evaluate_on_test, serialize_tensors
 
@@ -170,6 +174,41 @@ def _print_benchmark_table(
     print("=" * 124)
 
 
+def _print_nlc_table(
+    nlc_rows: List[Dict[str, Any]],
+    panel_nlc: Optional[Dict[str, Any]] = None,
+) -> None:
+    if not nlc_rows:
+        return
+    cls_keys = [k for k in nlc_rows[0] if k.startswith("class_")]
+    header_cls = " | ".join(f"{k:<10}" for k in cls_keys)
+    width = 62 + len(cls_keys) * 13
+    print(f"\n{' BENCHMARK ZERO-GT NLC CONSISTENCY ':=^{width}}")
+    print(
+        f"{'Method':<22} | {'Macro Avg':<10} | {'Delta':<9} | "
+        + (header_cls if cls_keys else "")
+    )
+    print("-" * width)
+    for r in nlc_rows:
+        cls_vals = " | ".join(f"{r[k]:<10.4f}" for k in cls_keys)
+        print(
+            f"{r['method']:<22} | {r['macro_avg']:<10.4f} | {r['delta_vs_ref']:+8.4f} | "
+            + cls_vals
+        )
+    if panel_nlc is not None:
+        p_cls = " | ".join(
+            f"{panel_nlc['per_class'][k]['panel_mean']:<10.4f}"
+            for k in cls_keys
+            if k in panel_nlc.get("per_class", {})
+        )
+        print("-" * width)
+        print(
+            f"{'Annotator Panel (mean)':<22} | {panel_nlc['macro_panel_mean']:<10.4f} | {'—':<9} | "
+            + p_cls
+        )
+    print("=" * width)
+
+
 def run_benchmark_evaluation(
     ctgce_weights: str | Path,
     annotharmony_weights: str | Path,
@@ -181,6 +220,8 @@ def run_benchmark_evaluation(
     reference: str = "CT-GCE",
     alpha: float = 0.05,
     beta: Optional[float] = None,
+    eval_nlc: Optional[bool] = None,
+    nlc_pretrained: bool = True,
 ) -> Dict[str, Any]:
     """Evaluate all 5 methods on Test and compute paired t-test & Wilcoxon reports."""
     _enable_realtime_logs()
@@ -224,17 +265,30 @@ def run_benchmark_evaluation(
     )
     out_root.mkdir(parents=True, exist_ok=True)
 
+    use_nlc = ref_cfg.training.eval_nlc if eval_nlc is None else eval_nlc
+
     print(f"\n{'':=<72}")
     print(f"  5-Method Benchmark Evaluation ({dataset or 'custom'})")
     print(f"  Device    : {device}")
     print(f"  Reference : {reference}")
     print(f"  Output    : {out_root}")
     print(f"  GT eval   : {ref_cfg.data.load_ground_truth}")
+    print(f"  Zero-GT   : {use_nlc}")
     print(f"{'':=<72}\n")
 
     # Use all-annotator mode so probabilistic consensus targets are identical across all 5 methods
     data_manager = CrowdSegmenterDataLoader(ref_cfg.data, mode="CT-GCE")
     _, _, test_loader = data_manager.get_split_loaders()
+
+    nlc_features = (
+        extract_prepared_dense_features(
+            loader=test_loader,
+            device=device,
+            pretrained=nlc_pretrained,
+        )
+        if use_nlc
+        else None
+    )
 
     method_dirs: Dict[str, Path] = {}
     method_summaries: Dict[str, Any] = {}
@@ -258,6 +312,9 @@ def run_benchmark_evaluation(
             output_path=model_dir,
             label=spec.name,
             prefix="test",
+            eval_nlc=use_nlc,
+            nlc_features=nlc_features,
+            nlc_pretrained=nlc_pretrained,
         )
         method_dirs[spec.name] = model_dir
         method_summaries[spec.name] = test_summary
@@ -281,15 +338,45 @@ def run_benchmark_evaluation(
         save_ablation_report(rows, output_dir=out_root, stem=f"benchmark_{proto}")
         comparisons[proto] = rows
 
+    nlc_rows: List[Dict[str, Any]] = []
+    panel_nlc: Optional[Dict[str, Any]] = None
+    if use_nlc and nlc_features is not None:
+        panel_nlc = compute_loader_panel_nlc_metrics(
+            features=nlc_features,
+            loader=test_loader,
+            num_classes=ref_cfg.model.num_classes,
+            num_annotators=ref_cfg.model.num_annotators,
+            ignored_value=ref_cfg.data.ignored_value,
+            prepare=False,
+        )
+        ref_macro = float(method_summaries[reference]["nlc"]["macro_avg"])
+        for spec in _build_method_specs():
+            nlc_info = method_summaries[spec.name]["nlc"]
+            row: Dict[str, Any] = {
+                "method": spec.name,
+                "reference": reference,
+                "macro_avg": float(nlc_info["macro_avg"]),
+                "delta_vs_ref": float(ref_macro - nlc_info["macro_avg"]),
+            }
+            for cls_k, cls_val in nlc_info["per_class"].items():
+                row[cls_k] = float(cls_val)
+            nlc_rows.append(row)
+        _print_nlc_table(nlc_rows, panel_nlc=panel_nlc)
+        save_ablation_report(nlc_rows, output_dir=out_root, stem="benchmark_nlc")
+
     summary_payload: Dict[str, Any] = {
         "dataset": dataset,
         "reference": reference,
         "alpha": alpha,
+        "eval_nlc": use_nlc,
         "weights": {k: str(v) for k, v in weights_map.items()},
         "configs": {k: str(v) for k, v in resolved_configs.items()},
         "methods": serialize_tensors(method_summaries),
         "comparisons": serialize_tensors(comparisons),
     }
+    if use_nlc:
+        summary_payload["nlc_comparison"] = serialize_tensors(nlc_rows)
+        summary_payload["panel_nlc"] = serialize_tensors(panel_nlc)
     summary_path = out_root / "benchmark_summary.json"
     with open(summary_path, "w", encoding="utf-8") as f:
         json.dump(summary_payload, f, indent=4)
@@ -362,6 +449,14 @@ def main() -> None:
         default=None,
         help="Optional Potts MRF beta override for Spatial-STAPLE.",
     )
+    parser.add_argument(
+        "--eval-nlc",
+        "--eval_nlc",
+        dest="eval_nlc",
+        action="store_true",
+        default=None,
+        help="Compute zero-GT NLC consistency across all 5 methods and annotator panel.",
+    )
     args = parser.parse_args()
 
     overrides: Dict[str, str] = {}
@@ -386,6 +481,7 @@ def main() -> None:
         reference=args.reference,
         alpha=args.alpha,
         beta=args.beta,
+        eval_nlc=args.eval_nlc,
     )
 
 

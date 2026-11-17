@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Type
+from typing import Any, Callable, Dict, Optional, Sequence, Type
 
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -48,8 +49,11 @@ def evaluate_on_test(
     output_path: Path,
     label: str,
     prefix: str = "test",
+    eval_nlc: Optional[bool] = None,
+    nlc_features: Optional[Sequence[np.ndarray]] = None,
+    nlc_pretrained: bool = True,
 ) -> Dict[str, Any]:
-    """Run probabilistic and optional GT evaluation on ``test_loader``."""
+    """Run probabilistic, optional GT, and optional zero-GT NLC evaluation on ``test_loader``."""
     class_names = [f"Class {i}" for i in range(cfg.model.num_classes)]
     tracker = MetricTracker(cfg.training)
 
@@ -79,6 +83,24 @@ def evaluate_on_test(
         tracker.print_full_report(f"{label} Test — Ground Truth", gt_metrics, class_names)
         summary["ground_truth"] = serialize_tensors(gt_metrics)
 
+    use_nlc = cfg.training.eval_nlc if eval_nlc is None else eval_nlc
+    if use_nlc:
+        nlc_metrics = tracker.evaluation_nlc(
+            model=model,
+            loader=test_loader,
+            device=device,
+            features=nlc_features,
+            nlc_pretrained=nlc_pretrained,
+        )
+        cls_str = " | ".join(
+            f"{k}: {v:.4f}" for k, v in nlc_metrics["per_class"].items()
+        )
+        print(
+            f"\n[{label} Test — Zero-GT NLC] Macro Avg: {nlc_metrics['macro_avg']:.4f}"
+            + (f" | {cls_str}" if cls_str else "")
+        )
+        summary["nlc"] = serialize_tensors(nlc_metrics)
+
     return summary
 
 
@@ -93,6 +115,8 @@ def run_training_experiment(
     extra_summary_fn: Optional[Callable[[Any], Dict[str, Any]]] = None,
     data_dir: Optional[str | Path] = None,
     output_dir: Optional[str | Path] = None,
+    eval_nlc: Optional[bool] = None,
+    nlc_pretrained: bool = True,
 ) -> Dict[str, Any]:
     """Execute training, test-set evaluation, and artifact serialization."""
     _enable_realtime_logs()
@@ -138,6 +162,8 @@ def run_training_experiment(
         output_path=output_path,
         label=label,
         prefix="test",
+        eval_nlc=eval_nlc,
+        nlc_pretrained=nlc_pretrained,
     )
 
     weights_path = output_path / weights_filename

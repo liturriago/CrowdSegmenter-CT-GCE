@@ -7,14 +7,23 @@ from crowdsegmenter.utils.ablation import (
     save_ablation_report,
 )
 from crowdsegmenter.utils.formatter import format_time
-from crowdsegmenter.utils.metrics import MetricTracker, compute_nlc_panel_metrics
+from crowdsegmenter.utils.metrics import (
+    MetricTracker,
+    compute_loader_panel_nlc_metrics,
+    compute_nlc_panel_metrics,
+    compute_prediction_nlc_metrics,
+    extract_prepared_dense_features,
+)
 from crowdsegmenter.utils.reproducibility import set_seed
 from crowdsegmenter.utils.train_phases import get_training_phase
 
 __all__ = [
     "MetricTracker",
     "compare_per_sample_metrics",
+    "compute_loader_panel_nlc_metrics",
     "compute_nlc_panel_metrics",
+    "compute_prediction_nlc_metrics",
+    "extract_prepared_dense_features",
     "format_time",
     "get_training_phase",
     "holm_bonferroni",

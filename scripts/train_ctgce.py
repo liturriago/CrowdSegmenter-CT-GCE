@@ -22,6 +22,7 @@ def run_ctgce_experiment(
     config_path: str,
     data_dir: Optional[str] = None,
     output_dir: Optional[str] = None,
+    eval_nlc: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """Train CT-GCE on Train/Valid and evaluate on Test."""
     return run_training_experiment(
@@ -43,6 +44,7 @@ def run_ctgce_experiment(
         },
         data_dir=data_dir,
         output_dir=output_dir,
+        eval_nlc=eval_nlc,
     )
 
 
@@ -56,5 +58,18 @@ if __name__ == "__main__":
     )
     parser.add_argument("--data", type=str, default=None, help="Override data_dir.")
     parser.add_argument("--output_dir", type=str, default=None, help="Override output_dir.")
+    parser.add_argument(
+        "--eval-nlc",
+        "--eval_nlc",
+        dest="eval_nlc",
+        action="store_true",
+        default=None,
+        help="Compute zero-GT NLC consistency on Test.",
+    )
     args = parser.parse_args()
-    run_ctgce_experiment(args.config, data_dir=args.data, output_dir=args.output_dir)
+    run_ctgce_experiment(
+        args.config,
+        data_dir=args.data,
+        output_dir=args.output_dir,
+        eval_nlc=args.eval_nlc,
+    )

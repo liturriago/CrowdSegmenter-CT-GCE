@@ -302,10 +302,15 @@ class CrowdSegmenterDataLoader:
             else:
                 key = tag
 
+            # CrowdSeg only samples 1 annotator during training; Valid/Test must load all annotators
+            # so consensus probabilistic evaluation & checkpoint selection are unbiased.
+            split_mode: Literal["Annot-Harmony", "CT-GCE", "CrowdSeg"] = (
+                "CT-GCE" if (self.mode == "CrowdSeg" and not is_train) else self.mode
+            )
             dataset = CrowdSegmenterDataset(
                 config=self.config,
                 partition=split,
-                mode=self.mode,
+                mode=split_mode,
                 transform=transform,
             )
 

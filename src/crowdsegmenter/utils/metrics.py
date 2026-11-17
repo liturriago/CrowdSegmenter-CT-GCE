@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from CrowdSegmenter_CT_GCE.metric import (
@@ -264,6 +265,49 @@ class MetricTracker:
 
         return full_metrics
 
+    def evaluation_nlc(
+        self,
+        model: nn.Module,
+        loader: DataLoader,
+        device: Union[str, torch.device],
+        features: Optional[Sequence[np.ndarray]] = None,
+        nlc_pretrained: bool = True,
+    ) -> Dict[str, Any]:
+        """Run inference and compute zero-GT NLC consistency across foreground classes."""
+        model.eval()
+        all_seg_preds: List[torch.Tensor] = []
+        is_baseline = getattr(model, "is_baseline", False)
+
+        with torch.no_grad():
+            for batch in loader:
+                masks = batch[1].to(device)
+                anns_ids = batch[2].to(device)
+                if is_baseline:
+                    output = model(masks, anns_ids)
+                else:
+                    images = batch[0].to(device)
+                    output = model(images, anns_ids)
+                seg_pred = output[0] if isinstance(output, tuple) else output
+                all_seg_preds.append(seg_pred.cpu())
+
+        flat_preds = torch.cat(all_seg_preds, dim=0)
+        prep_feats = (
+            list(features)
+            if features is not None
+            else extract_prepared_dense_features(
+                loader=loader,
+                device=device,
+                pretrained=nlc_pretrained,
+            )
+        )
+        return compute_prediction_nlc_metrics(
+            features=prep_feats,
+            seg_preds=flat_preds,
+            num_classes=self.num_classes,
+            threshold=self.threshold,
+            prepare=False,
+        )
+
     @staticmethod
     def print_summary(
         prefix: str,
@@ -362,4 +406,156 @@ def compute_nlc_panel_metrics(
         "panel_mean": panel_mean(scores),
         "panel_q10": panel_lower_quantile(scores, q=0.1),
         "panel_median": panel_median(scores),
+    }
+
+
+class _MultiScaleResNet34Features(nn.Module):
+    """Frozen multi-scale ResNet-34 extractor (layer2 + layer3) prepared per Eq. (8)."""
+
+    def __init__(self, target_size: Tuple[int, int], pretrained: bool = True) -> None:
+        super().__init__()
+        from crowdsegmenter.models.backbone import ResNet34Encoder
+
+        self.encoder = ResNet34Encoder(pretrained=pretrained, in_channels=3)
+        self.target_size = target_size
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        _, skips = self.encoder(x)
+        l2, l3 = skips[2], skips[3]
+        l2_up = F.interpolate(l2, size=self.target_size, mode="bilinear", align_corners=False)
+        l3_up = F.interpolate(l3, size=self.target_size, mode="bilinear", align_corners=False)
+        feat = torch.cat([l2_up, l3_up], dim=1)
+        feat = feat - feat.mean(dim=(2, 3), keepdim=True)
+        feat = F.normalize(feat, p=2, dim=1, eps=1e-8)
+        feat = feat - feat.mean(dim=(2, 3), keepdim=True)
+        return feat
+
+
+@torch.no_grad()
+def extract_prepared_dense_features(
+    loader: DataLoader,
+    device: Union[str, torch.device],
+    feat_size: Optional[Tuple[int, int]] = None,
+    pretrained: bool = True,
+) -> List[np.ndarray]:
+    """Extract Eq. (8)-prepared ResNet-34 feature maps once across ``loader``."""
+    extractor: Optional[_MultiScaleResNet34Features] = None
+    features: List[np.ndarray] = []
+
+    for batch in loader:
+        images = batch[0].to(device)
+        if extractor is None:
+            h, w = int(images.shape[2]), int(images.shape[3])
+            target_size = feat_size if feat_size is not None else (min(h, 128), min(w, 128))
+            extractor = _MultiScaleResNet34Features(
+                target_size=target_size,
+                pretrained=pretrained,
+            ).to(device)
+            extractor.eval()
+
+        batch_feats = extractor(images).cpu().numpy().astype(np.float32)
+        for sample_feat in batch_feats:
+            features.append(sample_feat)
+
+    return features
+
+
+def _resize_mask_nearest(mask: torch.Tensor, target_size: Tuple[int, int]) -> np.ndarray:
+    """Nearest-neighbor resize a binary ``[H, W]`` tensor to ``target_size``."""
+    if tuple(mask.shape) == target_size:
+        return mask.float().cpu().numpy()
+    resized = F.interpolate(
+        mask.unsqueeze(0).unsqueeze(0).float(),
+        size=target_size,
+        mode="nearest",
+    )
+    return resized.squeeze(0).squeeze(0).cpu().numpy()
+
+
+def compute_prediction_nlc_metrics(
+    features: Sequence[np.ndarray],
+    seg_preds: torch.Tensor,
+    num_classes: int,
+    threshold: float = 0.5,
+    prepare: bool = False,
+) -> Dict[str, Any]:
+    """Compute zero-GT NLC consistency on model predictions across foreground classes."""
+    if len(features) < 2:
+        raise ValueError(f"NLC requires at least 2 samples; got {len(features)}.")
+    if seg_preds.shape[0] != len(features):
+        raise ValueError(
+            f"Prediction count ({seg_preds.shape[0]}) does not match features ({len(features)})."
+        )
+
+    prepared = [
+        prepare_features(f) if prepare else np.asarray(f, dtype=np.float32) for f in features
+    ]
+    grid_size = (int(prepared[0].shape[1]), int(prepared[0].shape[2]))
+    pred_labels = seg_preds.argmax(dim=1) if num_classes > 2 else None
+
+    per_class: Dict[str, float] = {}
+    for cls_idx in range(1, num_classes):
+        if pred_labels is not None:
+            class_masks = (pred_labels == cls_idx).float()
+        else:
+            class_masks = (seg_preds[:, cls_idx] > threshold).float()
+
+        protos = [
+            nlc_prototype(feat, _resize_mask_nearest(mask, grid_size))
+            for feat, mask in zip(prepared, class_masks)
+        ]
+        score, _ = nlc_consistency(protos)
+        per_class[f"class_{cls_idx}"] = float(score)
+
+    macro_avg = float(np.mean(list(per_class.values()))) if per_class else 0.0
+    return {
+        "per_class": per_class,
+        "macro_avg": macro_avg,
+    }
+
+
+def compute_loader_panel_nlc_metrics(
+    features: Sequence[np.ndarray],
+    loader: DataLoader,
+    num_classes: int,
+    num_annotators: int,
+    ignored_value: float = 0.6,
+    prepare: bool = False,
+) -> Dict[str, Any]:
+    """Compute zero-GT NLC panel metrics across annotators in a multi-annotator loader."""
+    prepared = [
+        prepare_features(f) if prepare else np.asarray(f, dtype=np.float32) for f in features
+    ]
+    grid_size = (int(prepared[0].shape[1]), int(prepared[0].shape[2]))
+    all_masks = torch.cat([batch[1].cpu() for batch in loader], dim=0)
+    if all_masks.shape[0] != len(prepared):
+        raise ValueError(
+            f"Mask count ({all_masks.shape[0]}) does not match features ({len(prepared)})."
+        )
+
+    per_class: Dict[str, Dict[str, Any]] = {}
+    for cls_idx in range(1, num_classes):
+        ann_masks: List[List[np.ndarray]] = []
+        for ann_idx in range(num_annotators):
+            ch_idx = cls_idx * num_annotators + ann_idx
+            ch = all_masks[:, ch_idx]
+            valid = ch != ignored_value
+            bin_ch = torch.where(valid, (ch > 0.5).float(), torch.zeros_like(ch))
+            ann_masks.append(
+                [_resize_mask_nearest(m, grid_size) for m in bin_ch]
+            )
+        per_class[f"class_{cls_idx}"] = compute_nlc_panel_metrics(
+            features=prepared,
+            annotator_masks=ann_masks,
+            prepare=False,
+        )
+
+    macro_mean = (
+        float(np.mean([v["panel_mean"] for v in per_class.values()]))
+        if per_class
+        else 0.0
+    )
+    return {
+        "per_class": per_class,
+        "macro_panel_mean": macro_mean,
     }

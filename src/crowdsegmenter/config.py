@@ -125,6 +125,10 @@ class TrainConfig(BaseModel):
         default=False,
         description="Whether to run ground-truth evaluation alongside consensus metrics",
     )
+    eval_nlc: bool = Field(
+        default=False,
+        description="Whether to compute zero-GT Neighborhood Latent Consistency (NLC) on Test",
+    )
     epochs_phases: Optional[List[int]] = Field(
         default=[0, 5, 10, 15],
         description="Epochs at which to advance curriculum unfreezing phases",

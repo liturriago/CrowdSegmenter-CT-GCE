@@ -225,7 +225,7 @@ def test_train_eval_baselines_and_ablation_end_to_end(tmp_path: Path) -> None:
     assert len(comp_rows) == 20  # 5 methods * 4 metrics
     assert (tmp_path / "cmp_out" / "ablation_gt.csv").is_file()
 
-    # 4. Unified 5-method benchmark from saved checkpoints + paired t-test/Wilcoxon
+    # 4. Unified 5-method benchmark from saved checkpoints + paired t-test/Wilcoxon + NLC
     bench_out = tmp_path / "benchmark_out"
     bench_payload = run_benchmark_evaluation(
         ctgce_weights=tmp_path / "out_ct" / "ct_gce_final.pth",
@@ -241,6 +241,8 @@ def test_train_eval_baselines_and_ablation_end_to_end(tmp_path: Path) -> None:
         },
         data_dir=data_dir,
         output_dir=bench_out,
+        eval_nlc=True,
+        nlc_pretrained=False,
     )
     assert set(bench_payload["methods"].keys()) == {
         "CT-GCE",
@@ -249,6 +251,9 @@ def test_train_eval_baselines_and_ablation_end_to_end(tmp_path: Path) -> None:
         "MV",
         "Spatial-STAPLE",
     }
+    assert all("nlc" in bench_payload["methods"][m] for m in bench_payload["methods"])
+    assert len(bench_payload["nlc_comparison"]) == 5
+    assert "macro_panel_mean" in bench_payload["panel_nlc"]
     assert len(bench_payload["comparisons"]["gt"]) == 20
     assert len(bench_payload["comparisons"]["probabilistic"]) == 20
     assert "ttest_p" in bench_payload["comparisons"]["gt"][0]
@@ -256,6 +261,8 @@ def test_train_eval_baselines_and_ablation_end_to_end(tmp_path: Path) -> None:
     assert (bench_out / "benchmark_summary.json").is_file()
     assert (bench_out / "benchmark_gt.csv").is_file()
     assert (bench_out / "benchmark_probabilistic.csv").is_file()
+    assert (bench_out / "benchmark_nlc.csv").is_file()
+    assert (bench_out / "benchmark_nlc.json").is_file()
 
     # 5. CT-GCE component ablation suite
     ablation_payload = run_ct_gce_ablation_suite(ct_cfg, output_dir=tmp_path / "ablation_suite")
@@ -291,6 +298,8 @@ def test_scripts_cli_help_entrypoints() -> None:
         )
         assert proc.returncode == 0, f"{script} --help failed: {proc.stderr}"
         assert "--data" in proc.stdout
+        if script.startswith("scripts/train_") or script == "scripts/evaluate_benchmark.py":
+            assert "--eval-nlc" in proc.stdout
 
 
 def test_cli_data_and_output_dir_overrides(tmp_path: Path) -> None:
