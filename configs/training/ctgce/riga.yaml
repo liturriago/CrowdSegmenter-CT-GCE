@@ -31,7 +31,7 @@ model:
 
 training:
   model_name: "CT-GCE"
-  epochs: 75
+  epochs: 30
   lr: 1e-3
   transfer_lr: 1e-4
   branch_lr: 1e-3
