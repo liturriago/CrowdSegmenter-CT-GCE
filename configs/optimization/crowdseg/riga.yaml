@@ -51,8 +51,8 @@ optimization:
   n_epochs_per_trial: 8
   study_name: "noisy_label_alpha_riga"
   pruner_warmup_steps: 3
-  alpha_search_low: 0.005
-  alpha_search_high: 0.15
+  alpha_search_low: 0.01
+  alpha_search_high: 2.0
 
 experiment:
   name: "optuna_crowdseg_riga"
