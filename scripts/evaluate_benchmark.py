@@ -31,6 +31,7 @@ from crowdsegmenter.models.annot_harmony import AnnotHarmony
 from crowdsegmenter.models.baselines import MajorityVoting, SpatialSTAPLE
 from crowdsegmenter.models.crowdseg import CrowdSeg
 from crowdsegmenter.models.ctgce import CTGCEModel
+from crowdsegmenter.models.supervised import SupervisedResUNet
 from crowdsegmenter.utils.ablation import (
     compare_per_sample_metrics,
     load_per_sample_npz,
@@ -50,6 +51,7 @@ DEFAULT_DATASET_CONFIGS: Dict[str, Dict[str, str]] = {
         "CrowdSeg": "configs/training/crowdseg/oxfordiiitpet.yaml",
         "MV": "configs/training/MV/oxfordiiitpet.yaml",
         "Spatial-STAPLE": "configs/training/spatial_staple/oxfordiiitpet.yaml",
+        "Supervised-GT": "configs/training/supervised/oxfordiiitpet.yaml",
     },
     "riga": {
         "CT-GCE": "configs/training/ctgce/riga.yaml",
@@ -103,8 +105,8 @@ def _load_checkpoint(
     return model
 
 
-def _build_method_specs() -> tuple[_MethodSpec, ...]:
-    return (
+def _build_method_specs(include_supervised: bool = False) -> tuple[_MethodSpec, ...]:
+    specs = [
         _MethodSpec(
             name="CT-GCE",
             slug="ct_gce",
@@ -144,7 +146,17 @@ def _build_method_specs() -> tuple[_MethodSpec, ...]:
                 tol=cfg.model.staple_tol,
             ),
         ),
-    )
+    ]
+    if include_supervised:
+        specs.append(
+            _MethodSpec(
+                name="Supervised-GT",
+                slug="supervised",
+                weights_key="Supervised-GT",
+                builder=lambda cfg, _: _build_neural_model(SupervisedResUNet, cfg),
+            )
+        )
+    return tuple(specs)
 
 
 def _print_benchmark_table(
@@ -213,6 +225,7 @@ def run_benchmark_evaluation(
     ctgce_weights: str | Path,
     annotharmony_weights: str | Path,
     crowdseg_weights: str | Path,
+    supervised_weights: Optional[str | Path] = None,
     dataset: Optional[str] = "oxfordiiitpet",
     config_overrides: Optional[Mapping[str, str | Path]] = None,
     data_dir: Optional[str | Path] = None,
@@ -223,12 +236,13 @@ def run_benchmark_evaluation(
     eval_nlc: Optional[bool] = None,
     nlc_pretrained: bool = True,
 ) -> Dict[str, Any]:
-    """Evaluate all 5 methods on Test and compute paired t-test & Wilcoxon reports."""
+    """Evaluate all methods (5 crowd + optional Supervised GT oracle) on Test."""
     _enable_realtime_logs()
 
+    method_specs = _build_method_specs(include_supervised=supervised_weights is not None)
     defaults = DEFAULT_DATASET_CONFIGS.get(dataset or "", {})
     resolved_configs: Dict[str, Path] = {}
-    for spec in _build_method_specs():
+    for spec in method_specs:
         override = (config_overrides or {}).get(spec.name)
         cfg_val = override if override is not None else defaults.get(spec.name)
         if cfg_val is None:
@@ -242,6 +256,8 @@ def run_benchmark_evaluation(
         "Annot-Harmony": Path(annotharmony_weights),
         "CrowdSeg": Path(crowdseg_weights),
     }
+    if supervised_weights is not None:
+        weights_map["Supervised-GT"] = Path(supervised_weights)
     for name, wpath in weights_map.items():
         if not wpath.is_file():
             raise FileNotFoundError(f"Missing checkpoint for {name}: {wpath}")
@@ -293,7 +309,7 @@ def run_benchmark_evaluation(
     method_dirs: Dict[str, Path] = {}
     method_summaries: Dict[str, Any] = {}
 
-    for spec in _build_method_specs():
+    for spec in method_specs:
         cfg = configs[spec.name]
         model_dir = out_root / spec.slug
         model_dir.mkdir(parents=True, exist_ok=True)
@@ -350,7 +366,7 @@ def run_benchmark_evaluation(
             prepare=False,
         )
         ref_macro = float(method_summaries[reference]["nlc"]["macro_avg"])
-        for spec in _build_method_specs():
+        for spec in method_specs:
             nlc_info = method_summaries[spec.name]["nlc"]
             row: Dict[str, Any] = {
                 "method": spec.name,
@@ -416,6 +432,12 @@ def main() -> None:
         required=True,
         help="Path to trained CrowdSeg checkpoint (.pth).",
     )
+    parser.add_argument(
+        "--supervised_weights",
+        type=str,
+        default=None,
+        help="Optional path to trained Supervised-GT oracle checkpoint (.pth).",
+    )
     parser.add_argument("--ctgce_config", type=str, default=None, help="Optional CT-GCE YAML override.")
     parser.add_argument(
         "--tgce_ssps_config",
@@ -428,13 +450,21 @@ def main() -> None:
     parser.add_argument("--crowdseg_config", type=str, default=None, help="Optional CrowdSeg YAML override.")
     parser.add_argument("--mv_config", type=str, default=None, help="Optional MV YAML override.")
     parser.add_argument("--staple_config", type=str, default=None, help="Optional Spatial-STAPLE YAML override.")
+    parser.add_argument("--supervised_config", type=str, default=None, help="Optional Supervised-GT YAML override.")
     parser.add_argument("--data", type=str, default=None, help="Optional override for data_dir.")
     parser.add_argument("--output_dir", type=str, default=None, help="Optional override for output_dir.")
     parser.add_argument(
         "--reference",
         type=str,
         default="CT-GCE",
-        choices=["CT-GCE", "Annot-Harmony", "CrowdSeg", "MV", "Spatial-STAPLE"],
+        choices=[
+            "CT-GCE",
+            "Annot-Harmony",
+            "CrowdSeg",
+            "MV",
+            "Spatial-STAPLE",
+            "Supervised-GT",
+        ],
         help="Reference method for paired t-test and Wilcoxon tests.",
     )
     parser.add_argument(
@@ -466,6 +496,7 @@ def main() -> None:
         ("CrowdSeg", args.crowdseg_config),
         ("MV", args.mv_config),
         ("Spatial-STAPLE", args.staple_config),
+        ("Supervised-GT", args.supervised_config),
     ):
         if val is not None:
             overrides[key] = val
@@ -474,6 +505,7 @@ def main() -> None:
         ctgce_weights=args.ctgce_weights,
         annotharmony_weights=args.tgce_ssps_weights,
         crowdseg_weights=args.crowdseg_weights,
+        supervised_weights=args.supervised_weights,
         dataset=args.dataset,
         config_overrides=overrides,
         data_dir=args.data,

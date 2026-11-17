@@ -29,6 +29,7 @@ from scripts.evaluate_benchmark import run_benchmark_evaluation
 from scripts.train_tgce_ssps import run_annotharmony_experiment
 from scripts.train_crowdseg import run_crowdseg_experiment
 from scripts.train_ctgce import run_ctgce_experiment
+from scripts.train_supervised import run_supervised_experiment
 
 
 def _build_synthetic_dataset(root: Path, n_per_split: int = 3) -> Path:
@@ -194,18 +195,21 @@ def test_train_eval_baselines_and_ablation_end_to_end(tmp_path: Path) -> None:
     assert (tmp_path / "out_mv" / "test_gt_per_sample.npz").is_file()
     assert (tmp_path / "out_st" / "baseline_spatial-staple_results.json").is_file()
 
-    # 2. Deep models: AnnotHarmony, CrowdSeg, CT-GCE (train + test eval)
+    # 2. Deep models: AnnotHarmony, CrowdSeg, CT-GCE, Supervised-GT (train + test eval)
     ah_cfg = _write_yaml(tmp_path / "ah.yaml", data_dir, tmp_path / "out_ah", "Annot-Harmony")
     cs_cfg = _write_yaml(tmp_path / "cs.yaml", data_dir, tmp_path / "out_cs", "CrowdSeg")
     ct_cfg = _write_yaml(tmp_path / "ct.yaml", data_dir, tmp_path / "out_ct", "CT-GCE")
+    sup_cfg = _write_yaml(tmp_path / "sup.yaml", data_dir, tmp_path / "out_sup", "Supervised-GT")
 
     run_annotharmony_experiment(ah_cfg)
     run_crowdseg_experiment(cs_cfg)
     ct_summary = run_ctgce_experiment(ct_cfg)
+    run_supervised_experiment(sup_cfg)
 
     assert (tmp_path / "out_ah" / "tgce_ssps_final.pth").is_file()
     assert (tmp_path / "out_cs" / "crowdseg_final.pth").is_file()
     assert (tmp_path / "out_ct" / "ct_gce_final.pth").is_file()
+    assert (tmp_path / "out_sup" / "supervised_final.pth").is_file()
     assert "rho_hat" in ct_summary and "cutoffs" in ct_summary
     assert "probabilistic" in ct_summary["test"] and "ground_truth" in ct_summary["test"]
 
@@ -225,12 +229,13 @@ def test_train_eval_baselines_and_ablation_end_to_end(tmp_path: Path) -> None:
     assert len(comp_rows) == 20  # 5 methods * 4 metrics
     assert (tmp_path / "cmp_out" / "ablation_gt.csv").is_file()
 
-    # 4. Unified 5-method benchmark from saved checkpoints + paired t-test/Wilcoxon + NLC
+    # 4. Unified 6-method benchmark from saved checkpoints + paired t-test/Wilcoxon + NLC
     bench_out = tmp_path / "benchmark_out"
     bench_payload = run_benchmark_evaluation(
         ctgce_weights=tmp_path / "out_ct" / "ct_gce_final.pth",
         annotharmony_weights=tmp_path / "out_ah" / "tgce_ssps_final.pth",
         crowdseg_weights=tmp_path / "out_cs" / "crowdseg_final.pth",
+        supervised_weights=tmp_path / "out_sup" / "supervised_final.pth",
         dataset="oxfordiiitpet",
         config_overrides={
             "CT-GCE": ct_cfg,
@@ -238,6 +243,7 @@ def test_train_eval_baselines_and_ablation_end_to_end(tmp_path: Path) -> None:
             "CrowdSeg": cs_cfg,
             "MV": mv_cfg,
             "Spatial-STAPLE": st_cfg,
+            "Supervised-GT": sup_cfg,
         },
         data_dir=data_dir,
         output_dir=bench_out,
@@ -250,12 +256,13 @@ def test_train_eval_baselines_and_ablation_end_to_end(tmp_path: Path) -> None:
         "CrowdSeg",
         "MV",
         "Spatial-STAPLE",
+        "Supervised-GT",
     }
     assert all("nlc" in bench_payload["methods"][m] for m in bench_payload["methods"])
-    assert len(bench_payload["nlc_comparison"]) == 5
+    assert len(bench_payload["nlc_comparison"]) == 6
     assert "macro_panel_mean" in bench_payload["panel_nlc"]
-    assert len(bench_payload["comparisons"]["gt"]) == 20
-    assert len(bench_payload["comparisons"]["probabilistic"]) == 20
+    assert len(bench_payload["comparisons"]["gt"]) == 24
+    assert len(bench_payload["comparisons"]["probabilistic"]) == 24
     assert "ttest_p" in bench_payload["comparisons"]["gt"][0]
     assert "ttest_p_adj" in bench_payload["comparisons"]["gt"][0]
     assert (bench_out / "benchmark_summary.json").is_file()
@@ -283,6 +290,7 @@ def test_scripts_cli_help_entrypoints() -> None:
         "scripts/train_ctgce.py",
         "scripts/train_tgce_ssps.py",
         "scripts/train_crowdseg.py",
+        "scripts/train_supervised.py",
         "scripts/evaluate_baselines.py",
         "scripts/evaluate_benchmark.py",
         "scripts/evaluate_ablation.py",
@@ -336,6 +344,7 @@ def test_experiment_notebooks_are_valid_and_reference_real_files() -> None:
         "ctgce/optimize_riga_ctgce.ipynb",
         "ctgce/train_oxfordiiitpet_ctgce.ipynb",
         "ctgce/train_riga_ctgce.ipynb",
+        "supervised/train_oxfordiiitpet_supervised.ipynb",
         "tgce_ssps/optimize_oxfordiiitpet_tgce_ssps.ipynb",
         "tgce_ssps/optimize_riga_tgce_ssps.ipynb",
         "tgce_ssps/train_oxfordiiitpet_tgce_ssps.ipynb",

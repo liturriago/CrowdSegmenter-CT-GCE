@@ -37,6 +37,7 @@ def test_expected_training_configs_exist() -> None:
         "tgce_ssps/riga.yaml",
         "ctgce/oxfordiiitpet.yaml",
         "ctgce/riga.yaml",
+        "supervised/oxfordiiitpet.yaml",
     }
     assert expected.issubset(rel)
 

@@ -133,6 +133,8 @@ class _BaseTrainer:
 class Trainer(_BaseTrainer):
     """Curriculum trainer for ``AnnotHarmony`` (TGCE-SSPS) and ``CrowdSeg`` (NoisyLabelLoss)."""
 
+    _include_annotator_head: bool = True
+
     def __init__(
         self,
         model: nn.Module,
@@ -154,7 +156,10 @@ class Trainer(_BaseTrainer):
 
         if not epochs_phases:
             self.optimizer, self.scheduler = get_training_phase(
-                self.model, self.config, phase=None
+                self.model,
+                self.config,
+                phase=None,
+                include_annotator_head=self._include_annotator_head,
             )
 
         total_train_start = time.time()
@@ -163,7 +168,10 @@ class Trainer(_BaseTrainer):
             if epochs_phases and epoch in epochs_phases:
                 phase_idx = epochs_phases.index(epoch) + 1
                 self.optimizer, self.scheduler = get_training_phase(
-                    self.model, self.config, phase=phase_idx
+                    self.model,
+                    self.config,
+                    phase=phase_idx,
+                    include_annotator_head=self._include_annotator_head,
                 )
                 min_trace_flag += 1
                 if (
@@ -239,6 +247,60 @@ class Trainer(_BaseTrainer):
             metrics = self.tracker.calculate_metrics(
                 y_pred=seg_pred.detach(),
                 y_true=prob_mask,
+                threshold=self.config.threshold,
+            )
+            dice_sum += metrics["avg"]["dice"]
+            num_batches += 1
+
+        epoch_time = time.time() - epoch_start
+        return (
+            running_loss / max(total_samples, 1),
+            dice_sum / max(num_batches, 1),
+            epoch_time,
+        )
+
+
+class SupervisedTrainer(Trainer):
+    """Curriculum trainer for the supervised Ground-Truth ResUNet oracle."""
+
+    _include_annotator_head: bool = False
+
+    def _train_epoch(self) -> Tuple[float, float, float]:
+        if self.optimizer is None:
+            raise RuntimeError("Optimizer was not initialized; check epochs_phases.")
+
+        self.model.train()
+        running_loss = 0.0
+        dice_sum = 0.0
+        num_batches = 0
+        total_samples = 0
+        epoch_start = time.time()
+
+        for batch in self.train_loader:
+            if len(batch) < 4:
+                raise ValueError(
+                    f"SupervisedTrainer requires ground_truth in batch (len={len(batch)} < 4). "
+                    "Set load_ground_truth=True in DataConfig."
+                )
+            images = batch[0].to(self.device)
+            ground_truth = batch[3].to(self.device)
+
+            self.optimizer.zero_grad()
+            with autocast(device_type=self.device.type, enabled=self.use_amp):
+                seg_pred = self.model(images)
+                loss = self.criterion(seg_pred, ground_truth)
+
+            self.scaler.scale(loss).backward()
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
+
+            batch_size = images.size(0)
+            running_loss += loss.item() * batch_size
+            total_samples += batch_size
+
+            metrics = self.tracker.calculate_metrics(
+                y_pred=seg_pred.detach(),
+                y_true=ground_truth,
                 threshold=self.config.threshold,
             )
             dice_sum += metrics["avg"]["dice"]

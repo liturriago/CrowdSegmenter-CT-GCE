@@ -23,6 +23,7 @@ from crowdsegmenter.models.baselines import (
 )
 from crowdsegmenter.models.crowdseg import AnnRelCM, ConvBlockAnnRelCM, CrowdSeg
 from crowdsegmenter.models.ctgce import CTGCEModel, CategoryReliabilityHead
+from crowdsegmenter.models.supervised import SupervisedResUNet
 
 __all__ = [
     "AnnotHarmony",
@@ -40,6 +41,7 @@ __all__ = [
     "ResidualBlock",
     "SegmentationHead",
     "SpatialSTAPLE",
+    "SupervisedResUNet",
     "build_potts_kernel",
     "compute_entropy",
     "e_step",

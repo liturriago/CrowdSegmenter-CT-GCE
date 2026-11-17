@@ -100,7 +100,7 @@ class TrainConfig(BaseModel):
     """Configuration for training, evaluation, and loss hyperparameters."""
 
     model_name: Optional[
-        Literal["MV", "Spatial-STAPLE", "Annot-Harmony", "CrowdSeg", "CT-GCE"]
+        Literal["MV", "Spatial-STAPLE", "Annot-Harmony", "CrowdSeg", "CT-GCE", "Supervised-GT"]
     ] = Field(default=None, description="Model / method name")
     epochs: int = Field(default=40, description="Total number of training epochs", gt=0)
     lr: float = Field(default=1e-3, description="Primary learning rate", gt=0.0)

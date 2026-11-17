@@ -12,15 +12,16 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from crowdsegmenter.config import DataConfig, ExperimentConfig, ExperimentMetadata, ModelConfig, TrainConfig
 from crowdsegmenter.data.loader import CrowdSegmenterDataLoader, CrowdSegmenterDataset
-from crowdsegmenter.losses import CTGCELoss, NoisyLabelLoss, TGCE_SSPS
+from crowdsegmenter.losses import CTGCELoss, NoisyLabelLoss, SupervisedCELoss, TGCE_SSPS
 from crowdsegmenter.models import (
     AnnotHarmony,
     CTGCEModel,
     CrowdSeg,
     MajorityVoting,
     SpatialSTAPLE,
+    SupervisedResUNet,
 )
-from crowdsegmenter.training import CTGCETrainer, Trainer
+from crowdsegmenter.training import CTGCETrainer, SupervisedTrainer, Trainer
 from crowdsegmenter.utils import MetricTracker, compute_nlc_panel_metrics, set_seed
 
 
@@ -246,6 +247,19 @@ def test_trainers_smoke_fit_cpu() -> None:
     ah_trainer = Trainer(ah_model, loader, loader, ah_crit, torch.device("cpu"), t_cfg)
     _, ah_hist = ah_trainer.fit()
     assert len(ah_hist["val_dice"]) == 2
+
+    # Supervised GT Oracle Engine
+    gt = torch.nn.functional.one_hot(
+        torch.randint(0, 2, (4, 32, 32)), num_classes=2
+    ).permute(0, 3, 1, 2).float()
+    gt_loader = DataLoader(TensorDataset(images, masks, anns_ids, gt), batch_size=2)
+    sup_model = SupervisedResUNet(m_cfg)
+    sup_crit = SupervisedCELoss(ignored_value=0.6)
+    sup_trainer = SupervisedTrainer(
+        sup_model, gt_loader, gt_loader, sup_crit, torch.device("cpu"), t_cfg
+    )
+    _, sup_hist = sup_trainer.fit()
+    assert len(sup_hist["train_loss"]) == 2
 
 
 def test_experiment_config_roundtrip(tmp_path: Path) -> None:
