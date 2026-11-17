@@ -53,6 +53,7 @@ optimization:
   n_trials: 30
   n_epochs_per_trial: 8
   study_name: "ct_gce_riga"
+  pruner_warmup_steps: 3
   q_search_low: 0.1
   q_search_high: 0.99
   tune_schedule: true

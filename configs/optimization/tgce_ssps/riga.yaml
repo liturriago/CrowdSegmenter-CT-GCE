@@ -31,7 +31,7 @@ model:
 
 training:
   model_name: "Annot-Harmony"
-  epochs: 5
+  epochs: 8
   lr: 1e-3
   transfer_lr: 1e-4
   threshold: 0.5
@@ -41,7 +41,7 @@ training:
   num_annotators: 6
   ignored_value: 0.6
   smooth: 1e-8
-  epochs_phases: [0, 2, 4]
+  epochs_phases: [0, 2, 4, 6]
   gamma: 0.94
   tgce_lambda: 1.0
   seed: 42
@@ -49,13 +49,14 @@ training:
 
 optimization:
   n_trials: 30
-  n_epochs_per_trial: 5
+  n_epochs_per_trial: 8
   study_name: "tgce_ssps_q_riga"
+  pruner_warmup_steps: 3
   q_search_low: 0.1
   q_search_high: 0.99
 
 experiment:
-  name: "optuna_annotharmony_riga"
+  name: "optuna_tgce_ssps_riga"
   version: 1
-  output_dir: "results/optuna/annotharmony/riga"
+  output_dir: "results/optuna/tgce_ssps/riga"
   save_results: true

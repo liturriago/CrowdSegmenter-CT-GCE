@@ -195,6 +195,11 @@ class OptimizationConfig(BaseModel):
     n_trials: int = Field(default=30, description="Number of Optuna trials", gt=0)
     n_epochs_per_trial: int = Field(default=5, description="Epochs per Optuna trial", gt=0)
     study_name: str = Field(default="optuna_study", description="Optuna study name")
+    pruner_warmup_steps: int = Field(
+        default=3,
+        ge=0,
+        description="MedianPruner warm-up steps before pruning is allowed",
+    )
     q_search_low: float = Field(default=0.1, gt=0.0, le=1.0)
     q_search_high: float = Field(default=0.99, gt=0.0, le=1.0)
     alpha_search_low: float = Field(default=0.01, gt=0.0)

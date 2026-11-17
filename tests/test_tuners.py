@@ -100,7 +100,7 @@ def _make_fake_optuna(studies: Dict[str, _FakeStudy] | None = None):
         TrialPruned=_FakeTrialPruned,
         create_study=_create_study,
         samplers=SimpleNamespace(TPESampler=lambda seed=42: seed),
-        pruners=SimpleNamespace(MedianPruner=lambda: None),
+        pruners=SimpleNamespace(MedianPruner=lambda **kwargs: kwargs),
     )
 
 

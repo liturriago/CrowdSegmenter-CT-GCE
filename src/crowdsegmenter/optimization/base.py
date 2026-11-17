@@ -143,13 +143,14 @@ class BaseOptunaTuner(ABC):
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
         db_path = (self.output_dir / "optuna_study.db").resolve()
+        pruner_warmup = opt_cfg.pruner_warmup_steps if opt_cfg is not None else 3
         self.study = opt.create_study(
             study_name=self.study_name,
             storage=f"sqlite:///{db_path}",
             load_if_exists=True,
             direction="maximize",
             sampler=opt.samplers.TPESampler(seed=self.seed),
-            pruner=opt.pruners.MedianPruner(),
+            pruner=opt.pruners.MedianPruner(n_warmup_steps=pruner_warmup),
         )
 
         self.results: List[Dict[str, Any]] = []
