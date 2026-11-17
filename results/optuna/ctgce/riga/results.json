@@ -1,0 +1,341 @@
+{
+    "best_params": {
+        "q": 0.15049502584907437,
+        "warmup_epochs": 4,
+        "calibration_interval": 2
+    },
+    "best_val_dice": 0.8893598384327359,
+    "trials": [
+        {
+            "number": 12,
+            "params": {
+                "q": 0.15049502584907437,
+                "warmup_epochs": 4,
+                "calibration_interval": 2
+            },
+            "value": 0.8893598384327359,
+            "state": "COMPLETE",
+            "q": 0.15049502584907437
+        },
+        {
+            "number": 2,
+            "params": {
+                "q": 0.11832019992326419,
+                "warmup_epochs": 4,
+                "calibration_interval": 1
+            },
+            "value": 0.8882955577638414,
+            "state": "COMPLETE",
+            "q": 0.11832019992326419
+        },
+        {
+            "number": 16,
+            "params": {
+                "q": 0.10597824838203507,
+                "warmup_epochs": 3,
+                "calibration_interval": 1
+            },
+            "value": 0.8872242834832933,
+            "state": "COMPLETE",
+            "q": 0.10597824838203507
+        },
+        {
+            "number": 22,
+            "params": {
+                "q": 0.22384897029760925,
+                "warmup_epochs": 4,
+                "calibration_interval": 3
+            },
+            "value": 0.8867521749602424,
+            "state": "COMPLETE",
+            "q": 0.22384897029760925
+        },
+        {
+            "number": 13,
+            "params": {
+                "q": 0.32177821243310006,
+                "warmup_epochs": 4,
+                "calibration_interval": 2
+            },
+            "value": 0.8842987418174744,
+            "state": "COMPLETE",
+            "q": 0.32177821243310006
+        },
+        {
+            "number": 18,
+            "params": {
+                "q": 0.10156189809303703,
+                "warmup_epochs": 3,
+                "calibration_interval": 2
+            },
+            "value": 0.8835229012701247,
+            "state": "COMPLETE",
+            "q": 0.10156189809303703
+        },
+        {
+            "number": 11,
+            "params": {
+                "q": 0.1533084496062811,
+                "warmup_epochs": 4,
+                "calibration_interval": 1
+            },
+            "value": 0.8829873402913412,
+            "state": "COMPLETE",
+            "q": 0.1533084496062811
+        },
+        {
+            "number": 0,
+            "params": {
+                "q": 0.4333407057741526,
+                "warmup_epochs": 4,
+                "calibration_interval": 1
+            },
+            "value": 0.881178961859809,
+            "state": "COMPLETE",
+            "q": 0.4333407057741526
+        },
+        {
+            "number": 15,
+            "params": {
+                "q": 0.11886480876010483,
+                "warmup_epochs": 4,
+                "calibration_interval": 2
+            },
+            "value": 0.8807661599583096,
+            "state": "PRUNED",
+            "q": 0.11886480876010483
+        },
+        {
+            "number": 21,
+            "params": {
+                "q": 0.14812775589641297,
+                "warmup_epochs": 3,
+                "calibration_interval": 1
+            },
+            "value": 0.8061934577094184,
+            "state": "PRUNED",
+            "q": 0.14812775589641297
+        },
+        {
+            "number": 28,
+            "params": {
+                "q": 0.1702129086771058,
+                "warmup_epochs": 3,
+                "calibration_interval": 3
+            },
+            "value": 0.7381192379527621,
+            "state": "PRUNED",
+            "q": 0.1702129086771058
+        },
+        {
+            "number": 23,
+            "params": {
+                "q": 0.22634829638098858,
+                "warmup_epochs": 3,
+                "calibration_interval": 2
+            },
+            "value": 0.6981231967608134,
+            "state": "PRUNED",
+            "q": 0.22634829638098858
+        },
+        {
+            "number": 20,
+            "params": {
+                "q": 0.4464355703428265,
+                "warmup_epochs": 4,
+                "calibration_interval": 2
+            },
+            "value": 0.5729514261086782,
+            "state": "PRUNED",
+            "q": 0.4464355703428265
+        },
+        {
+            "number": 10,
+            "params": {
+                "q": 0.9168428310187311,
+                "warmup_epochs": 4,
+                "calibration_interval": 1
+            },
+            "value": 0.5617305702633328,
+            "state": "COMPLETE",
+            "q": 0.9168428310187311
+        },
+        {
+            "number": 17,
+            "params": {
+                "q": 0.28652199318842175,
+                "warmup_epochs": 3,
+                "calibration_interval": 1
+            },
+            "value": 0.5497445861498514,
+            "state": "PRUNED",
+            "q": 0.28652199318842175
+        },
+        {
+            "number": 27,
+            "params": {
+                "q": 0.550246820457504,
+                "warmup_epochs": 4,
+                "calibration_interval": 3
+            },
+            "value": 0.5491315623124441,
+            "state": "PRUNED",
+            "q": 0.550246820457504
+        },
+        {
+            "number": 3,
+            "params": {
+                "q": 0.2632300137695561,
+                "warmup_epochs": 2,
+                "calibration_interval": 1
+            },
+            "value": 0.5318817363844978,
+            "state": "COMPLETE",
+            "q": 0.2632300137695561
+        },
+        {
+            "number": 1,
+            "params": {
+                "q": 0.23883512309922036,
+                "warmup_epochs": 1,
+                "calibration_interval": 1
+            },
+            "value": 0.531404541598426,
+            "state": "COMPLETE",
+            "q": 0.23883512309922036
+        },
+        {
+            "number": 4,
+            "params": {
+                "q": 0.6445490763029177,
+                "warmup_epochs": 1,
+                "calibration_interval": 3
+            },
+            "value": 0.5282624893718295,
+            "state": "COMPLETE",
+            "q": 0.6445490763029177
+        },
+        {
+            "number": 8,
+            "params": {
+                "q": 0.20861402901185316,
+                "warmup_epochs": 2,
+                "calibration_interval": 2
+            },
+            "value": 0.5245769421259562,
+            "state": "PRUNED",
+            "q": 0.20861402901185316
+        },
+        {
+            "number": 14,
+            "params": {
+                "q": 0.3401746806008763,
+                "warmup_epochs": 3,
+                "calibration_interval": 3
+            },
+            "value": 0.512412299712499,
+            "state": "PRUNED",
+            "q": 0.3401746806008763
+        },
+        {
+            "number": 26,
+            "params": {
+                "q": 0.39338198865479856,
+                "warmup_epochs": 3,
+                "calibration_interval": 2
+            },
+            "value": 0.5027167234155867,
+            "state": "PRUNED",
+            "q": 0.39338198865479856
+        },
+        {
+            "number": 19,
+            "params": {
+                "q": 0.47149175690744155,
+                "warmup_epochs": 3,
+                "calibration_interval": 1
+            },
+            "value": 0.4972320894400279,
+            "state": "PRUNED",
+            "q": 0.47149175690744155
+        },
+        {
+            "number": 29,
+            "params": {
+                "q": 0.3754380890049274,
+                "warmup_epochs": 2,
+                "calibration_interval": 1
+            },
+            "value": 0.4669856031735738,
+            "state": "PRUNED",
+            "q": 0.3754380890049274
+        },
+        {
+            "number": 25,
+            "params": {
+                "q": 0.40885414944873094,
+                "warmup_epochs": 2,
+                "calibration_interval": 2
+            },
+            "value": 0.4641934434572856,
+            "state": "PRUNED",
+            "q": 0.40885414944873094
+        },
+        {
+            "number": 9,
+            "params": {
+                "q": 0.689644833075044,
+                "warmup_epochs": 2,
+                "calibration_interval": 2
+            },
+            "value": 0.4537861711449093,
+            "state": "PRUNED",
+            "q": 0.689644833075044
+        },
+        {
+            "number": 24,
+            "params": {
+                "q": 0.12567834635261424,
+                "warmup_epochs": 1,
+                "calibration_interval": 1
+            },
+            "value": 0.4397434691588084,
+            "state": "PRUNED",
+            "q": 0.12567834635261424
+        },
+        {
+            "number": 7,
+            "params": {
+                "q": 0.8194736398236504,
+                "warmup_epochs": 2,
+                "calibration_interval": 2
+            },
+            "value": 0.42787127362357247,
+            "state": "PRUNED",
+            "q": 0.8194736398236504
+        },
+        {
+            "number": 6,
+            "params": {
+                "q": 0.6407149181922801,
+                "warmup_epochs": 1,
+                "calibration_interval": 3
+            },
+            "value": 0.4076382749610477,
+            "state": "PRUNED",
+            "q": 0.6407149181922801
+        },
+        {
+            "number": 5,
+            "params": {
+                "q": 0.7988066056397821,
+                "warmup_epochs": 1,
+                "calibration_interval": 2
+            },
+            "value": 0.3952566352155473,
+            "state": "PRUNED",
+            "q": 0.7988066056397821
+        }
+    ],
+    "best_q": 0.15049502584907437
+}

@@ -1,0 +1,42 @@
+[
+    {
+        "method": "CT-GCE",
+        "reference": "CT-GCE",
+        "macro_avg": 0.6255297035159267,
+        "delta_vs_ref": 0.0,
+        "class_1": 0.6064943735817834,
+        "class_2": 0.6445650334500701
+    },
+    {
+        "method": "Annot-Harmony",
+        "reference": "CT-GCE",
+        "macro_avg": 0.6272060668647883,
+        "delta_vs_ref": -0.0016763633488615648,
+        "class_1": 0.6100164346878608,
+        "class_2": 0.6443956990417157
+    },
+    {
+        "method": "CrowdSeg",
+        "reference": "CT-GCE",
+        "macro_avg": 0.11148114606084601,
+        "delta_vs_ref": 0.5140485574550807,
+        "class_1": 0.2202960893849228,
+        "class_2": 0.0026662027367692484
+    },
+    {
+        "method": "MV",
+        "reference": "CT-GCE",
+        "macro_avg": 0.6233575316488531,
+        "delta_vs_ref": 0.0021721718670736356,
+        "class_1": 0.6075640031633767,
+        "class_2": 0.6391510601343295
+    },
+    {
+        "method": "Spatial-STAPLE",
+        "reference": "CT-GCE",
+        "macro_avg": 0.6218184412425691,
+        "delta_vs_ref": 0.0037112622733576073,
+        "class_1": 0.6037788265065516,
+        "class_2": 0.6398580559785868
+    }
+]

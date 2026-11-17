@@ -19,7 +19,9 @@ htmlcov/
 /data/
 /models/*
 !/models/.gitkeep
-/results/*
-!/results/.gitkeep
+*.pth
+*.pt
+*.zip
+*:Zone.Identifier
 /outputs/
 *.log
