@@ -262,12 +262,13 @@ def test_trainers_smoke_fit_cpu() -> None:
     assert len(sup_hist["train_loss"]) == 2
 
     # CrowdSeg min_trace curriculum switch: Phase 1 (min_trace=False) -> Phase 2 (min_trace=True)
+    # Also verify non-4-length schedules like [0, 2, 4] are preserved rather than falling back.
     cs_model = CrowdSeg(m_cfg)
     cs_crit = NoisyLabelLoss(annotators=3, classes=2, ignored_value=0.6, min_trace=True, alpha=0.1)
     cs_cfg = TrainConfig(
         model_name="CrowdSeg",
         epochs=4,
-        epochs_phases=[0, 2, 4, 6],
+        epochs_phases=[0, 2, 4],
         min_trace=True,
         device="cpu",
         num_classes=2,

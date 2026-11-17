@@ -43,7 +43,10 @@ class NoisyLabelTuner(BaseOptunaTuner):
 
     def _suggest_params(self, trial: Any, trial_config: TrainConfig) -> Dict[str, Any]:
         space = self._search_space()
-        alpha = trial.suggest_float("alpha", space.alpha_search_low, space.alpha_search_high)
+        # Sample log-uniformly so small scales (0.01-0.1) are explored alongside 0.1-2.0.
+        alpha = trial.suggest_float(
+            "alpha", space.alpha_search_low, space.alpha_search_high, log=True
+        )
         return {"alpha": alpha}
 
     def _build_model(self) -> nn.Module:

@@ -123,7 +123,7 @@ class _BaseTrainer:
             return []
         if (
             isinstance(phases, list)
-            and len(phases) in (4, 5)
+            and len(phases) >= 1
             and all(isinstance(x, (int, float)) for x in phases)
         ):
             return [int(p) for p in phases]

@@ -33,8 +33,8 @@ class _FakeTrial:
     state: Any = field(default_factory=lambda: SimpleNamespace(name="COMPLETE"))
     prune_on_report: bool = False
 
-    def suggest_float(self, name: str, low: float, high: float) -> float:
-        val = 0.5 * (low + high)
+    def suggest_float(self, name: str, low: float, high: float, log: bool = False) -> float:
+        val = (low * high) ** 0.5 if log else 0.5 * (low + high)
         self.params[name] = val
         return val
 
