@@ -54,7 +54,7 @@ class NoisyLabelTuner(BaseOptunaTuner):
             annotators=self.config.model.num_annotators,
             classes=self.config.model.num_classes,
             ignored_value=self.config.data.ignored_value,
-            min_trace=self.config.training.min_trace,
+            min_trace=False,
             alpha=params["alpha"],
             smooth=self.config.training.smooth,
         )

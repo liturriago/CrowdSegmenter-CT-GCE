@@ -261,6 +261,31 @@ def test_trainers_smoke_fit_cpu() -> None:
     _, sup_hist = sup_trainer.fit()
     assert len(sup_hist["train_loss"]) == 2
 
+    # CrowdSeg min_trace curriculum switch: Phase 1 (min_trace=False) -> Phase 2 (min_trace=True)
+    cs_model = CrowdSeg(m_cfg)
+    cs_crit = NoisyLabelLoss(annotators=3, classes=2, ignored_value=0.6, min_trace=True, alpha=0.1)
+    cs_cfg = TrainConfig(
+        model_name="CrowdSeg",
+        epochs=4,
+        epochs_phases=[0, 2, 4, 6],
+        min_trace=True,
+        device="cpu",
+        num_classes=2,
+        num_annotators=3,
+        probabilistic_thresholds=[0.5],
+    )
+    cs_trainer = Trainer(cs_model, loader, loader, cs_crit, torch.device("cpu"), cs_cfg)
+    seen_min_trace: list[bool] = []
+    orig_train_epoch = cs_trainer._train_epoch
+
+    def _spy_train_epoch():
+        seen_min_trace.append(cs_crit.min_trace)
+        return orig_train_epoch()
+
+    cs_trainer._train_epoch = _spy_train_epoch  # type: ignore[method-assign]
+    cs_trainer.fit()
+    assert seen_min_trace == [False, False, True, True]
+
 
 def test_experiment_config_roundtrip(tmp_path: Path) -> None:
     cfg = ExperimentConfig(

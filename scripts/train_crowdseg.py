@@ -33,7 +33,7 @@ def run_crowdseg_experiment(
             annotators=cfg.model.num_annotators,
             classes=cfg.model.num_classes,
             ignored_value=cfg.data.ignored_value,
-            min_trace=cfg.training.min_trace,
+            min_trace=False if cfg.training.epochs_phases else cfg.training.min_trace,
             alpha=cfg.training.alpha,
             smooth=cfg.training.smooth,
         ),

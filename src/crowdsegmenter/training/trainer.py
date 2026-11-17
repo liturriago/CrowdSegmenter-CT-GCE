@@ -154,6 +154,17 @@ class Trainer(_BaseTrainer):
         epochs_phases = self._resolve_phases()
         min_trace_flag = 0
 
+        if (
+            getattr(self.config, "model_name", None) == "CrowdSeg"
+            and hasattr(self.criterion, "min_trace")
+        ):
+            # Phase 1 maximizes trace (warm-up toward identity CM); Phase 2 enables min_trace.
+            self.criterion.min_trace = (
+                False
+                if len(epochs_phases) >= 2
+                else bool(getattr(self.config, "min_trace", False))
+            )
+
         if not epochs_phases:
             self.optimizer, self.scheduler = get_training_phase(
                 self.model,
@@ -181,6 +192,7 @@ class Trainer(_BaseTrainer):
                     and hasattr(self.criterion, "min_trace")
                 ):
                     self.criterion.min_trace = True
+                    print("[CrowdSeg] Phase 2: enabling trace minimization (min_trace=True)", flush=True)
 
             print(f"\nEpoch {epoch + 1}/{epochs}")
             print("-" * 40)
