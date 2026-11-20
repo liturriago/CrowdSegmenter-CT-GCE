@@ -61,6 +61,10 @@ class DataConfig(BaseModel):
     batch_size: int = Field(default=16, description="Batch size", gt=0)
     num_workers: int = Field(default=4, description="Number of DataLoader workers", ge=0)
     pin_memory: bool = Field(default=True, description="Whether to pin memory in DataLoader")
+    cache_val: bool = Field(
+        default=False,
+        description="Cache deterministic Valid samples in memory after first pass (for Optuna speedups)",
+    )
     prefetch_factor: Optional[int] = Field(
         default=2,
         description="Prefetch factor for DataLoader when num_workers > 0",
@@ -157,6 +161,11 @@ class TrainConfig(BaseModel):
     calibration_interval: int = Field(
         default=1,
         description="Epochs between Eq. (4) cutoff recalibrations after warm-up",
+        gt=0,
+    )
+    calibration_max_batches: Optional[int] = Field(
+        default=None,
+        description="Optional cap on train batches scanned per Dawid-Skene / cutoff calibration pass",
         gt=0,
     )
 

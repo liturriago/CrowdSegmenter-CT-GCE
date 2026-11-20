@@ -368,3 +368,118 @@ def test_enhanced_augmentation_crop_sync_and_crowdseg_sentinel(tmp_path: Path) -
         ((cs_masks == 0.0) | (cs_masks == 1.0) | torch.isclose(cs_masks, torch.tensor(0.6))).all()
     )
     assert torch.allclose(cs_ids.sum(dim=1), torch.ones(cs_ids.shape[0]))
+
+
+def test_val_cache_and_ctgce_calibration_max_batches(tmp_path: Path) -> None:
+    rng = np.random.default_rng(7)
+    for split in ("Train", "Valid", "Test"):
+        (tmp_path / split / "images").mkdir(parents=True, exist_ok=True)
+        for folder in ("annotator_1", "annotator_2", "ground_truth"):
+            for cls in ("class_0", "class_1"):
+                (tmp_path / split / "masks" / folder / cls).mkdir(parents=True, exist_ok=True)
+        for idx in range(4):
+            name = f"{idx}.png"
+            img_arr = rng.integers(0, 255, size=(16, 16, 3), dtype=np.uint8)
+            Image.fromarray(img_arr, mode="RGB").save(tmp_path / split / "images" / name)
+            c1 = rng.integers(0, 2, size=(16, 16), dtype=np.uint8) * 255
+            c0 = 255 - c1
+            for folder in ("annotator_1", "annotator_2", "ground_truth"):
+                Image.fromarray(c0, mode="L").save(tmp_path / split / "masks" / folder / "class_0" / name)
+                Image.fromarray(c1, mode="L").save(tmp_path / split / "masks" / folder / "class_1" / name)
+
+    d_cfg = DataConfig(
+        data_dir=str(tmp_path),
+        partitions=["Train", "Valid", "Test"],
+        images_folder="images",
+        load_annotators=True,
+        load_ground_truth=True,
+        num_classes=2,
+        num_annotators=2,
+        image_size=[16, 16],
+        batch_size=2,
+        num_workers=0,
+        pin_memory=False,
+        cache_val=True,
+    )
+    dm = CrowdSegmenterDataLoader(d_cfg, mode="CT-GCE")
+    train_loader, val_loader, _ = dm.get_split_loaders()
+
+    first_pass = [img.clone() for img, _, _, _ in val_loader]
+    assert len(val_loader.dataset._cache) == 4
+
+    val_calls = 0
+    orig_val_load = val_loader.dataset._load_tensor
+
+    def _counted_val_load(*args, **kwargs):
+        nonlocal val_calls
+        val_calls += 1
+        return orig_val_load(*args, **kwargs)
+
+    val_loader.dataset._load_tensor = _counted_val_load  # type: ignore[method-assign]
+    second_pass = [img.clone() for img, _, _, _ in val_loader]
+    assert val_calls == 0
+    assert all(torch.equal(a, b) for a, b in zip(first_pass, second_pass))
+
+    train_calls = 0
+    orig_train_load = train_loader.dataset._load_tensor
+
+    def _counted_train_load(*args, **kwargs):
+        nonlocal train_calls
+        train_calls += 1
+        return orig_train_load(*args, **kwargs)
+
+    train_loader.dataset._load_tensor = _counted_train_load  # type: ignore[method-assign]
+    _ = list(train_loader)
+    assert train_loader.dataset._cache is None
+    assert train_calls > 0
+
+    ds_images = torch.randn(6, 3, 16, 16)
+    ds_masks = _make_masks_batch(b=6, r=2, k=2, h=16, w=16)
+    ds_anns = torch.ones(6, 2)
+    ds_gt = torch.zeros(6, 2, 16, 16)
+    toy_loader = DataLoader(TensorDataset(ds_images, ds_masks, ds_anns, ds_gt), batch_size=2, shuffle=False)
+
+    m_cfg = ModelConfig(
+        num_annotators=2,
+        in_channels=3,
+        num_classes=2,
+        image_size=16,
+        pretrained=False,
+        decoder_channels=[32, 16, 8, 8],
+        seg_head_activation="softmax",
+        annotator_activation="sigmoid",
+    )
+    model = CTGCEModel(m_cfg)
+    criterion = CTGCELoss(annotators=2, classes=2, ignored_value=0.6, q=0.7)
+    t_cfg = TrainConfig(
+        epochs_phases=[],
+        calibration_max_batches=1,
+        device="cpu",
+        num_classes=2,
+        num_annotators=2,
+        probabilistic_thresholds=[0.5],
+        learning_rates=[1e-3],
+    )
+    trainer = CTGCETrainer(model, toy_loader, toy_loader, criterion, torch.device("cpu"), t_cfg)
+    assert trainer._calib_batch_budget() == 1
+
+    stride_calls = 0
+    orig_stride = trainer._stride_batch_masks
+
+    def _counted_stride(*args, **kwargs):
+        nonlocal stride_calls
+        stride_calls += 1
+        return orig_stride(*args, **kwargs)
+
+    trainer._stride_batch_masks = _counted_stride  # type: ignore[method-assign]
+    rho = trainer._estimate_dataset_noise_rates()
+    assert stride_calls == 1
+    assert rho.shape == (2,) and bool(torch.isfinite(rho).all())
+
+    trainer.rho_hat = rho
+    stride_calls = 0
+    cutoffs = trainer._refresh_cutoffs()
+    assert stride_calls == 2
+    assert trainer.cutoffs is not None
+    assert cutoffs.shape == (2,) and bool(torch.isfinite(cutoffs).all())
+

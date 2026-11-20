@@ -371,16 +371,25 @@ class CTGCETrainer(_BaseTrainer):
         step = max(1, flat.shape[0] // max(target_pixels, 1))
         return flat[::step].unsqueeze(-1).unsqueeze(-1).cpu()
 
+    def _calib_batch_budget(self) -> int:
+        n_total = max(len(self.train_loader), 1)
+        max_batches = getattr(self.config, "calibration_max_batches", None)
+        if max_batches is not None and int(max_batches) > 0:
+            return min(n_total, int(max_batches))
+        return n_total
+
     @torch.no_grad()
     def _estimate_dataset_noise_rates(self) -> torch.Tensor:
         """Estimate global ``rho_hat [K]`` over the training split using Dawid-Skene EM."""
         t0 = time.time()
         print("[Dawid-Skene] Estimating per-category noise rates rho_hat...", flush=True)
-        n_batches = max(len(self.train_loader), 1)
+        n_batches = self._calib_batch_budget()
         per_batch = max(1, self.max_ds_pixels // n_batches)
-        sampled_masks = [
-            self._stride_batch_masks(batch[1], per_batch) for batch in self.train_loader
-        ]
+        sampled_masks = []
+        for idx, batch in enumerate(self.train_loader):
+            if idx >= n_batches:
+                break
+            sampled_masks.append(self._stride_batch_masks(batch[1], per_batch))
         stacked = torch.cat(sampled_masks, dim=0)
         rho = self.criterion.estimate_noise_rates(stacked, max_pixels=self.max_ds_pixels)
         if not bool(torch.isfinite(rho).all()):
@@ -401,11 +410,13 @@ class CTGCETrainer(_BaseTrainer):
 
         t0 = time.time()
         self.model.eval()
-        n_batches = max(len(self.train_loader), 1)
+        n_batches = self._calib_batch_budget()
         per_batch = max(1, self.max_calib_pixels // n_batches)
         all_preds: List[torch.Tensor] = []
         all_masks: List[torch.Tensor] = []
-        for batch in self.train_loader:
+        for idx, batch in enumerate(self.train_loader):
+            if idx >= n_batches:
+                break
             images = batch[0].to(self.device)
             masks = batch[1]
             seg_pred, _ = self.model(images, multihot=None)

@@ -184,6 +184,7 @@ class CrowdSegmenterDataset(Dataset):
         partition: str,
         mode: Literal["Annot-Harmony", "CT-GCE", "CrowdSeg"] = "CT-GCE",
         transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+        cache_in_memory: bool = False,
     ) -> None:
         mode_mapping = {
             "annot-harmony": "Annot-Harmony",
@@ -202,6 +203,9 @@ class CrowdSegmenterDataset(Dataset):
         self.transform = transform
         self.normalize = config.normalize
         self.data_path = Path(config.data_dir) / partition
+        self._cache: Optional[Dict[int, Tuple[torch.Tensor, ...]]] = (
+            {} if cache_in_memory else None
+        )
 
         if not self.data_path.exists():
             raise FileNotFoundError(f"Partition directory not found: {self.data_path}")
@@ -292,6 +296,9 @@ class CrowdSegmenterDataset(Dataset):
         return len(self.patch_files)
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, ...]:
+        if self._cache is not None and idx in self._cache:
+            return self._cache[idx]
+
         is_train = self.partition.lower() in ("train", "training")
         use_enh_train = bool(self.config.enh_aug and is_train and self.transform is not None)
         out_size = (int(self.config.image_size[0]), int(self.config.image_size[1]))
@@ -327,7 +334,10 @@ class CrowdSegmenterDataset(Dataset):
             else:
                 results[0] = self.transform(results[0])
 
-        return tuple(results)
+        out = tuple(results)
+        if self._cache is not None:
+            self._cache[idx] = out
+        return out
 
     def _load_all_annotators(
         self,
@@ -502,6 +512,7 @@ class CrowdSegmenterDataLoader:
                 partition=split,
                 mode=split_mode,
                 transform=transform,
+                cache_in_memory=bool(self.config.cache_val and key == "val" and not is_train),
             )
 
             loaders[key] = DataLoader(
