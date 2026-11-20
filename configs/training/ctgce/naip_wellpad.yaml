@@ -48,9 +48,9 @@ training:
   smooth: 1e-8
   epochs_phases: [0, 5, 10, 15, 20]
   gamma: 0.94
-  ctgce_q: 0.5
-  warmup_epochs: 10
-  calibration_interval: 2
+  ctgce_q: 0.27023040040956914
+  warmup_epochs: 4
+  calibration_interval: 3
   n_epochs_per_trial: 8
   q_search_low: 0.1
   q_search_high: 0.99

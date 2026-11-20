@@ -47,7 +47,7 @@ training:
   smooth: 1e-8
   epochs_phases: [0, 5, 10, 15, 20]
   gamma: 0.94
-  tgce_q: 0.5
+  tgce_q: 0.4333407057741526
   tgce_lambda: 1.0
   n_epochs_per_trial: 8
   q_search_low: 0.1
