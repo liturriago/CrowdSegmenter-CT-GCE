@@ -47,7 +47,7 @@ training:
   epochs_phases: [0, 5, 10, 15, 20]
   gamma: 0.94
   ctgce_q: 0.15049502584907437
-  warmup_epochs: 4
+  warmup_epochs: 10
   calibration_interval: 2
   n_epochs_per_trial: 5
   q_search_low: 0.1
