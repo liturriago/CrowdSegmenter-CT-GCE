@@ -8,6 +8,7 @@ data:
   num_classes: 3
   num_annotators: 6
   image_size: [224, 224]
+  enh_aug: false
   ignored_value: 0.6
   normalize: true
   transforms: true

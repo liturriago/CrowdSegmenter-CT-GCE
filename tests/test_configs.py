@@ -29,15 +29,21 @@ def test_expected_training_configs_exist() -> None:
     expected = {
         "MV/oxfordiiitpet.yaml",
         "MV/riga.yaml",
+        "MV/naip_wellpad.yaml",
         "spatial_staple/oxfordiiitpet.yaml",
         "spatial_staple/riga.yaml",
+        "spatial_staple/naip_wellpad.yaml",
         "crowdseg/oxfordiiitpet.yaml",
         "crowdseg/riga.yaml",
+        "crowdseg/naip_wellpad.yaml",
         "tgce_ssps/oxfordiiitpet.yaml",
         "tgce_ssps/riga.yaml",
+        "tgce_ssps/naip_wellpad.yaml",
         "ctgce/oxfordiiitpet.yaml",
         "ctgce/riga.yaml",
+        "ctgce/naip_wellpad.yaml",
         "supervised/oxfordiiitpet.yaml",
+        "supervised/naip_wellpad.yaml",
     }
     assert expected.issubset(rel)
 
@@ -47,10 +53,13 @@ def test_expected_optimization_configs_exist() -> None:
     expected = {
         "crowdseg/oxfordiiitpet.yaml",
         "crowdseg/riga.yaml",
+        "crowdseg/naip_wellpad.yaml",
         "tgce_ssps/oxfordiiitpet.yaml",
         "tgce_ssps/riga.yaml",
+        "tgce_ssps/naip_wellpad.yaml",
         "ctgce/oxfordiiitpet.yaml",
         "ctgce/riga.yaml",
+        "ctgce/naip_wellpad.yaml",
     }
     assert expected.issubset(rel)
 

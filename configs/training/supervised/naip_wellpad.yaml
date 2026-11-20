@@ -1,0 +1,56 @@
+data:
+  data_dir: "/kaggle/input/datasets/lucasiturriago/naip-well-pad-multiannotator-5000"
+  partitions: ["Train", "Valid", "Test"]
+  images_folder: "images"
+  masks_folder: "masks"
+  ground_truth_folder: "ground_truth"
+  load_annotators: true
+  load_ground_truth: true
+  num_classes: 2
+  num_annotators: 4
+  image_size: [224, 224]
+  enh_aug: true
+  enh_crop_size: [512, 512]
+  ignored_value: 0.6
+  normalize: true
+  transforms: true
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+  batch_size: 16
+  num_workers: 4
+  pin_memory: true
+  prefetch_factor: 2
+
+model:
+  num_annotators: 4
+  in_channels: 3
+  num_classes: 2
+  image_size: 224
+  pretrained: true
+  decoder_channels: [256, 128, 64, 64]
+  use_residual: true
+  seg_head_activation: "softmax"
+
+training:
+  model_name: "Supervised-GT"
+  epochs: 25
+  lr: 1e-3
+  transfer_lr: 1e-4
+  threshold: 0.5
+  probabilistic_thresholds: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+  ground_truth: true
+  eval_nlc: true
+  num_classes: 2
+  num_annotators: 4
+  ignored_value: 0.6
+  smooth: 1e-8
+  epochs_phases: [0, 5, 10, 15, 20]
+  gamma: 0.94
+  seed: 42
+  device: "cuda"
+
+experiment:
+  name: "supervised_gt_naip_wellpad"
+  version: 1
+  output_dir: "results/supervised/naip_wellpad"
+  save_results: true

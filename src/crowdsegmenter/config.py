@@ -37,6 +37,14 @@ class DataConfig(BaseModel):
         default=[256, 256],
         description="Image resizing dimensions (H, W)",
     )
+    enh_aug: bool = Field(
+        default=False,
+        description="Enable enhanced Train augmentations (RandomCrop, Rotate90, HSV, GaussianBlur)",
+    )
+    enh_crop_size: Optional[List[int]] = Field(
+        default=[512, 512],
+        description="RandomCrop [H, W] applied on native Train samples before resizing when enh_aug=True",
+    )
     ignored_value: float = Field(default=0.6, description="Sentinel value for missing annotations")
     normalize: bool = Field(default=True, description="Whether to scale inputs to [0, 1]")
     transforms: bool = Field(default=True, description="Whether to apply data augmentation/norm")
@@ -271,6 +279,12 @@ class ExperimentConfig(BaseModel):
             )
         if len(self.data.image_size) != 2 or any(d <= 0 for d in self.data.image_size):
             raise ValueError(f"data.image_size must be [H, W] > 0; got {self.data.image_size}")
+        if self.data.enh_crop_size is not None and (
+            len(self.data.enh_crop_size) != 2 or any(d <= 0 for d in self.data.enh_crop_size)
+        ):
+            raise ValueError(
+                f"data.enh_crop_size must be [H, W] > 0 or None; got {self.data.enh_crop_size}"
+            )
         if self.model.image_size != self.data.image_size[0]:
             raise ValueError(
                 f"model.image_size ({self.model.image_size}) must match "

@@ -60,6 +60,14 @@ DEFAULT_DATASET_CONFIGS: Dict[str, Dict[str, str]] = {
         "MV": "configs/training/MV/riga.yaml",
         "Spatial-STAPLE": "configs/training/spatial_staple/riga.yaml",
     },
+    "naip_wellpad": {
+        "CT-GCE": "configs/training/ctgce/naip_wellpad.yaml",
+        "Annot-Harmony": "configs/training/tgce_ssps/naip_wellpad.yaml",
+        "CrowdSeg": "configs/training/crowdseg/naip_wellpad.yaml",
+        "MV": "configs/training/MV/naip_wellpad.yaml",
+        "Spatial-STAPLE": "configs/training/spatial_staple/naip_wellpad.yaml",
+        "Supervised-GT": "configs/training/supervised/naip_wellpad.yaml",
+    },
 }
 
 

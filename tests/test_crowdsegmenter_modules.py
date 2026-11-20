@@ -296,3 +296,75 @@ def test_experiment_config_roundtrip(tmp_path: Path) -> None:
         experiment=ExperimentMetadata(name="smoke_ctgce"),
     )
     assert cfg.training.model_name == "CT-GCE"
+
+
+def test_enhanced_augmentation_crop_sync_and_crowdseg_sentinel(tmp_path: Path) -> None:
+    set_seed(99)
+    for split in ("Train", "Valid", "Test"):
+        (tmp_path / split / "images").mkdir(parents=True)
+        for folder in ("annotator_1", "annotator_2", "annotator_3", "annotator_4", "ground_truth"):
+            for cls in ("class_0", "class_1"):
+                (tmp_path / split / "masks" / folder / cls).mkdir(parents=True)
+
+        for idx in range(2):
+            name = f"tile_{idx}.png"
+            img = np.random.randint(0, 255, (64, 64, 3), dtype=np.uint8)
+            Image.fromarray(img).save(tmp_path / split / "images" / name)
+
+            gt_c1 = np.zeros((64, 64), dtype=np.uint8)
+            gt_c1[12:52, 12:52] = 255
+            gt_c0 = 255 - gt_c1
+            Image.fromarray(gt_c0).save(tmp_path / split / "masks" / "ground_truth" / "class_0" / name)
+            Image.fromarray(gt_c1).save(tmp_path / split / "masks" / "ground_truth" / "class_1" / name)
+
+            for r in range(1, 5):
+                Image.fromarray(gt_c0).save(tmp_path / split / "masks" / f"annotator_{r}" / "class_0" / name)
+                Image.fromarray(gt_c1).save(tmp_path / split / "masks" / f"annotator_{r}" / "class_1" / name)
+
+    d_cfg = DataConfig(
+        data_dir=str(tmp_path),
+        partitions=["Train", "Valid", "Test"],
+        images_folder="images",
+        load_annotators=True,
+        load_ground_truth=True,
+        num_classes=2,
+        num_annotators=4,
+        image_size=[32, 32],
+        enh_aug=True,
+        enh_crop_size=[48, 48],
+        batch_size=2,
+        num_workers=0,
+        pin_memory=False,
+    )
+
+    dm = CrowdSegmenterDataLoader(d_cfg, mode="CT-GCE")
+    train_loader, val_loader, test_loader = dm.get_split_loaders()
+    tr_img, tr_masks, tr_ids, tr_gt = next(iter(train_loader))
+    assert tr_img.shape == (2, 3, 32, 32)
+    assert tr_masks.shape == (2, 8, 32, 32)
+    assert tr_ids.shape == (2, 4)
+    assert tr_gt.shape == (2, 2, 32, 32)
+    assert torch.isfinite(tr_img).all()
+    # Mask values must remain strictly binary {0.0, 1.0} after crop/rot90/resize
+    assert set(torch.unique(tr_gt).tolist()).issubset({0.0, 1.0})
+    assert set(torch.unique(tr_masks).tolist()).issubset({0.0, 1.0})
+    # Every annotator must stay spatially aligned with ground_truth after crop/flip/rot90
+    for r in range(4):
+        assert torch.equal(tr_masks[:, r], tr_gt[:, 0])
+        assert torch.equal(tr_masks[:, 4 + r], tr_gt[:, 1])
+
+    va_img, _, _, va_gt = next(iter(val_loader))
+    te_img, _, _, te_gt = next(iter(test_loader))
+    assert va_img.shape == (2, 3, 32, 32)
+    assert te_img.shape == (2, 3, 32, 32)
+    assert set(torch.unique(va_gt).tolist()).issubset({0.0, 1.0})
+    assert set(torch.unique(te_gt).tolist()).issubset({0.0, 1.0})
+
+    # CrowdSeg mode must keep ignored_value=0.6 intact on unselected annotator channels
+    cs_dm = CrowdSegmenterDataLoader(d_cfg, mode="CrowdSeg")
+    cs_train, _, _ = cs_dm.get_split_loaders()
+    _, cs_masks, cs_ids, _ = next(iter(cs_train))
+    assert bool(
+        ((cs_masks == 0.0) | (cs_masks == 1.0) | torch.isclose(cs_masks, torch.tensor(0.6))).all()
+    )
+    assert torch.allclose(cs_ids.sum(dim=1), torch.ones(cs_ids.shape[0]))
