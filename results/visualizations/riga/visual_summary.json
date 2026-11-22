@@ -1,0 +1,124 @@
+{
+    "dataset": "riga",
+    "split": "test",
+    "methods": [
+        "CT-GCE",
+        "CrowdSeg",
+        "MV",
+        "Spatial-STAPLE"
+    ],
+    "weights": {
+        "CT-GCE": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/ctgce/riga/ct_gce_final.pth",
+        "CrowdSeg": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/crowdseg/riga/crowdseg_final.pth"
+    },
+    "samples": [
+        {
+            "sample_index": 0,
+            "file_name": "sample_0.png",
+            "sample_dir": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0000_sample_0",
+            "figure_path": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0000_sample_0/input_anns_predictions.png",
+            "figure_paths": {
+                "input_anns_predictions": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0000_sample_0/input_anns_predictions.png",
+                "ctgce_lambdas": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0000_sample_0/ctgce_lambdas.png",
+                "crowdseg_confusion_matrices": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0000_sample_0/crowdseg_confusion_matrices.png"
+            },
+            "arrays_path": null,
+            "sample_dice": {
+                "CT-GCE": 0.9489315748214722,
+                "CrowdSeg": 0.27947506308555603,
+                "MV": 1.0,
+                "Spatial-STAPLE": 0.9796580076217651
+            }
+        },
+        {
+            "sample_index": 2,
+            "file_name": "sample_2.png",
+            "sample_dir": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0002_sample_2",
+            "figure_path": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0002_sample_2/input_anns_predictions.png",
+            "figure_paths": {
+                "input_anns_predictions": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0002_sample_2/input_anns_predictions.png",
+                "ctgce_lambdas": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0002_sample_2/ctgce_lambdas.png",
+                "crowdseg_confusion_matrices": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0002_sample_2/crowdseg_confusion_matrices.png"
+            },
+            "arrays_path": null,
+            "sample_dice": {
+                "CT-GCE": 0.8520581126213074,
+                "CrowdSeg": 0.2880304455757141,
+                "MV": 1.0,
+                "Spatial-STAPLE": 0.9829082489013672
+            }
+        },
+        {
+            "sample_index": 4,
+            "file_name": "sample_4.png",
+            "sample_dir": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0004_sample_4",
+            "figure_path": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0004_sample_4/input_anns_predictions.png",
+            "figure_paths": {
+                "input_anns_predictions": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0004_sample_4/input_anns_predictions.png",
+                "ctgce_lambdas": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0004_sample_4/ctgce_lambdas.png",
+                "crowdseg_confusion_matrices": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0004_sample_4/crowdseg_confusion_matrices.png"
+            },
+            "arrays_path": null,
+            "sample_dice": {
+                "CT-GCE": 0.9446247816085815,
+                "CrowdSeg": 0.20028290152549744,
+                "MV": 1.0,
+                "Spatial-STAPLE": 0.9829868078231812
+            }
+        },
+        {
+            "sample_index": 6,
+            "file_name": "sample_6.png",
+            "sample_dir": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0006_sample_6",
+            "figure_path": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0006_sample_6/input_anns_predictions.png",
+            "figure_paths": {
+                "input_anns_predictions": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0006_sample_6/input_anns_predictions.png",
+                "ctgce_lambdas": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0006_sample_6/ctgce_lambdas.png",
+                "crowdseg_confusion_matrices": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0006_sample_6/crowdseg_confusion_matrices.png"
+            },
+            "arrays_path": null,
+            "sample_dice": {
+                "CT-GCE": 0.9074682593345642,
+                "CrowdSeg": 0.1472999006509781,
+                "MV": 1.0,
+                "Spatial-STAPLE": 0.9754225611686707
+            }
+        },
+        {
+            "sample_index": 8,
+            "file_name": "sample_8.png",
+            "sample_dir": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0008_sample_8",
+            "figure_path": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0008_sample_8/input_anns_predictions.png",
+            "figure_paths": {
+                "input_anns_predictions": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0008_sample_8/input_anns_predictions.png",
+                "ctgce_lambdas": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0008_sample_8/ctgce_lambdas.png",
+                "crowdseg_confusion_matrices": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0008_sample_8/crowdseg_confusion_matrices.png"
+            },
+            "arrays_path": null,
+            "sample_dice": {
+                "CT-GCE": 0.9381107687950134,
+                "CrowdSeg": 0.27320927381515503,
+                "MV": 1.0,
+                "Spatial-STAPLE": 0.9884387850761414
+            }
+        },
+        {
+            "sample_index": 10,
+            "file_name": "sample_10.png",
+            "sample_dir": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0010_sample_10",
+            "figure_path": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0010_sample_10/input_anns_predictions.png",
+            "figure_paths": {
+                "input_anns_predictions": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0010_sample_10/input_anns_predictions.png",
+                "ctgce_lambdas": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0010_sample_10/ctgce_lambdas.png",
+                "crowdseg_confusion_matrices": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/riga/sample_0010_sample_10/crowdseg_confusion_matrices.png"
+            },
+            "arrays_path": null,
+            "sample_dice": {
+                "CT-GCE": 0.9398486018180847,
+                "CrowdSeg": 0.14927193522453308,
+                "MV": 1.0,
+                "Spatial-STAPLE": 0.9830581545829773
+            }
+        }
+    ]
+}

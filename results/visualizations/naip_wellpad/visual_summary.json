@@ -1,0 +1,132 @@
+{
+    "dataset": "naip_wellpad",
+    "split": "test",
+    "methods": [
+        "CT-GCE",
+        "CrowdSeg",
+        "MV",
+        "Spatial-STAPLE",
+        "Supervised-GT"
+    ],
+    "weights": {
+        "CT-GCE": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/ctgce/naip_wellpad/ct_gce_final.pth",
+        "CrowdSeg": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/crowdseg/naip_wellpad/crowdseg_final.pth",
+        "Supervised-GT": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/supervised/naip_wellpad/supervised_final.pth"
+    },
+    "samples": [
+        {
+            "sample_index": 0,
+            "file_name": "146775.png",
+            "sample_dir": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0000_146775",
+            "figure_path": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0000_146775/input_anns_predictions.png",
+            "figure_paths": {
+                "input_anns_predictions": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0000_146775/input_anns_predictions.png",
+                "ctgce_lambdas": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0000_146775/ctgce_lambdas.png",
+                "crowdseg_confusion_matrices": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0000_146775/crowdseg_confusion_matrices.png"
+            },
+            "arrays_path": null,
+            "sample_dice": {
+                "CT-GCE": 0.8202895522117615,
+                "CrowdSeg": 0.8022146821022034,
+                "MV": 0.9695185422897339,
+                "Spatial-STAPLE": 0.9779194593429565,
+                "Supervised-GT": 0.8792150020599365
+            }
+        },
+        {
+            "sample_index": 31,
+            "file_name": "147430.png",
+            "sample_dir": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0031_147430",
+            "figure_path": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0031_147430/input_anns_predictions.png",
+            "figure_paths": {
+                "input_anns_predictions": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0031_147430/input_anns_predictions.png",
+                "ctgce_lambdas": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0031_147430/ctgce_lambdas.png",
+                "crowdseg_confusion_matrices": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0031_147430/crowdseg_confusion_matrices.png"
+            },
+            "arrays_path": null,
+            "sample_dice": {
+                "CT-GCE": 0.9548841714859009,
+                "CrowdSeg": 0.9222887754440308,
+                "MV": 0.9683340191841125,
+                "Spatial-STAPLE": 0.9785237312316895,
+                "Supervised-GT": 0.9549134969711304
+            }
+        },
+        {
+            "sample_index": 62,
+            "file_name": "148138.png",
+            "sample_dir": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0062_148138",
+            "figure_path": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0062_148138/input_anns_predictions.png",
+            "figure_paths": {
+                "input_anns_predictions": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0062_148138/input_anns_predictions.png",
+                "ctgce_lambdas": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0062_148138/ctgce_lambdas.png",
+                "crowdseg_confusion_matrices": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0062_148138/crowdseg_confusion_matrices.png"
+            },
+            "arrays_path": null,
+            "sample_dice": {
+                "CT-GCE": 0.4711468517780304,
+                "CrowdSeg": 0.4711468517780304,
+                "MV": 0.9253263473510742,
+                "Spatial-STAPLE": 0.9601176977157593,
+                "Supervised-GT": 0.471035361289978
+            }
+        },
+        {
+            "sample_index": 217,
+            "file_name": "151181.png",
+            "sample_dir": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0217_151181",
+            "figure_path": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0217_151181/input_anns_predictions.png",
+            "figure_paths": {
+                "input_anns_predictions": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0217_151181/input_anns_predictions.png",
+                "ctgce_lambdas": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0217_151181/ctgce_lambdas.png",
+                "crowdseg_confusion_matrices": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0217_151181/crowdseg_confusion_matrices.png"
+            },
+            "arrays_path": null,
+            "sample_dice": {
+                "CT-GCE": 0.8699843883514404,
+                "CrowdSeg": 0.7794426679611206,
+                "MV": 0.9605449438095093,
+                "Spatial-STAPLE": 0.9659247398376465,
+                "Supervised-GT": 0.9121369123458862
+            }
+        },
+        {
+            "sample_index": 279,
+            "file_name": "152488.png",
+            "sample_dir": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0279_152488",
+            "figure_path": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0279_152488/input_anns_predictions.png",
+            "figure_paths": {
+                "input_anns_predictions": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0279_152488/input_anns_predictions.png",
+                "ctgce_lambdas": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0279_152488/ctgce_lambdas.png",
+                "crowdseg_confusion_matrices": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0279_152488/crowdseg_confusion_matrices.png"
+            },
+            "arrays_path": null,
+            "sample_dice": {
+                "CT-GCE": 0.5628648996353149,
+                "CrowdSeg": 0.8743003606796265,
+                "MV": 0.9511737823486328,
+                "Spatial-STAPLE": 0.9647600650787354,
+                "Supervised-GT": 0.9468152523040771
+            }
+        },
+        {
+            "sample_index": 372,
+            "file_name": "154588.png",
+            "sample_dir": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0372_154588",
+            "figure_path": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0372_154588/input_anns_predictions.png",
+            "figure_paths": {
+                "input_anns_predictions": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0372_154588/input_anns_predictions.png",
+                "ctgce_lambdas": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0372_154588/ctgce_lambdas.png",
+                "crowdseg_confusion_matrices": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/naip_wellpad/sample_0372_154588/crowdseg_confusion_matrices.png"
+            },
+            "arrays_path": null,
+            "sample_dice": {
+                "CT-GCE": 0.8831024169921875,
+                "CrowdSeg": 0.881170392036438,
+                "MV": 0.9304665923118591,
+                "Spatial-STAPLE": 0.9608480930328369,
+                "Supervised-GT": 0.9279019832611084
+            }
+        }
+    ]
+}

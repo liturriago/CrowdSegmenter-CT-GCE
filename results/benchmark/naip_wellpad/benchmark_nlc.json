@@ -1,0 +1,37 @@
+[
+    {
+        "method": "CT-GCE",
+        "reference": "CT-GCE",
+        "macro_avg": 0.08268864112440928,
+        "delta_vs_ref": 0.0,
+        "class_1": 0.08268864112440928
+    },
+    {
+        "method": "CrowdSeg",
+        "reference": "CT-GCE",
+        "macro_avg": 0.10577204216835373,
+        "delta_vs_ref": -0.02308340104394445,
+        "class_1": 0.10577204216835373
+    },
+    {
+        "method": "MV",
+        "reference": "CT-GCE",
+        "macro_avg": 0.07935861072259537,
+        "delta_vs_ref": 0.003330030401813913,
+        "class_1": 0.07935861072259537
+    },
+    {
+        "method": "Spatial-STAPLE",
+        "reference": "CT-GCE",
+        "macro_avg": 0.07863016793797313,
+        "delta_vs_ref": 0.004058473186436151,
+        "class_1": 0.07863016793797313
+    },
+    {
+        "method": "Supervised-GT",
+        "reference": "CT-GCE",
+        "macro_avg": 0.08704044954088692,
+        "delta_vs_ref": -0.004351808416477643,
+        "class_1": 0.08704044954088692
+    }
+]

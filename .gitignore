@@ -17,11 +17,17 @@ htmlcov/
 
 # Data, weights & experiment outputs (anchored at repo root so src/crowdsegmenter/data/ is tracked)
 /data/
-/models/*
-!/models/.gitkeep
+/models/
 *.pth
 *.pt
 *.zip
 *:Zone.Identifier
 /outputs/
 *.log
+
+# Local-only tooling/notes/secondary-line files excluded from GitHub
+/CrowdSegmenter-CT-GCE/
+/BENCHMARK.md
+/configs/training/tgce_ssps/
+/configs/optimization/tgce_ssps/
+/notebooks/experiments/tgce_ssps/

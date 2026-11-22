@@ -1,0 +1,132 @@
+{
+    "dataset": "oxfordiiitpet",
+    "split": "test",
+    "methods": [
+        "CT-GCE",
+        "CrowdSeg",
+        "MV",
+        "Spatial-STAPLE",
+        "Supervised-GT"
+    ],
+    "weights": {
+        "CT-GCE": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/ctgce/oxfordiiitpet/ct_gce_final.pth",
+        "CrowdSeg": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/crowdseg/oxfordiiitpet/crowdseg_final.pth",
+        "Supervised-GT": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/supervised/oxfordiiitpet/supervised_final.pth"
+    },
+    "samples": [
+        {
+            "sample_index": 0,
+            "file_name": "sample_0.png",
+            "sample_dir": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0000_sample_0",
+            "figure_path": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0000_sample_0/input_anns_predictions.png",
+            "figure_paths": {
+                "input_anns_predictions": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0000_sample_0/input_anns_predictions.png",
+                "ctgce_lambdas": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0000_sample_0/ctgce_lambdas.png",
+                "crowdseg_confusion_matrices": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0000_sample_0/crowdseg_confusion_matrices.png"
+            },
+            "arrays_path": null,
+            "sample_dice": {
+                "CT-GCE": 0.9578157663345337,
+                "CrowdSeg": 0.9560798406600952,
+                "MV": 0.8841968774795532,
+                "Spatial-STAPLE": 0.8911269903182983,
+                "Supervised-GT": 0.9635597467422485
+            }
+        },
+        {
+            "sample_index": 10,
+            "file_name": "sample_10.png",
+            "sample_dir": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0010_sample_10",
+            "figure_path": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0010_sample_10/input_anns_predictions.png",
+            "figure_paths": {
+                "input_anns_predictions": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0010_sample_10/input_anns_predictions.png",
+                "ctgce_lambdas": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0010_sample_10/ctgce_lambdas.png",
+                "crowdseg_confusion_matrices": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0010_sample_10/crowdseg_confusion_matrices.png"
+            },
+            "arrays_path": null,
+            "sample_dice": {
+                "CT-GCE": 0.9533237218856812,
+                "CrowdSeg": 0.9554558992385864,
+                "MV": 0.8398109674453735,
+                "Spatial-STAPLE": 0.8423815965652466,
+                "Supervised-GT": 0.9601424336433411
+            }
+        },
+        {
+            "sample_index": 20,
+            "file_name": "sample_20.png",
+            "sample_dir": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0020_sample_20",
+            "figure_path": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0020_sample_20/input_anns_predictions.png",
+            "figure_paths": {
+                "input_anns_predictions": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0020_sample_20/input_anns_predictions.png",
+                "ctgce_lambdas": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0020_sample_20/ctgce_lambdas.png",
+                "crowdseg_confusion_matrices": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0020_sample_20/crowdseg_confusion_matrices.png"
+            },
+            "arrays_path": null,
+            "sample_dice": {
+                "CT-GCE": 0.9337315559387207,
+                "CrowdSeg": 0.9561643600463867,
+                "MV": 0.9375260472297668,
+                "Spatial-STAPLE": 0.937810480594635,
+                "Supervised-GT": 0.9573315382003784
+            }
+        },
+        {
+            "sample_index": 30,
+            "file_name": "sample_30.png",
+            "sample_dir": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0030_sample_30",
+            "figure_path": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0030_sample_30/input_anns_predictions.png",
+            "figure_paths": {
+                "input_anns_predictions": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0030_sample_30/input_anns_predictions.png",
+                "ctgce_lambdas": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0030_sample_30/ctgce_lambdas.png",
+                "crowdseg_confusion_matrices": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0030_sample_30/crowdseg_confusion_matrices.png"
+            },
+            "arrays_path": null,
+            "sample_dice": {
+                "CT-GCE": 0.9234112501144409,
+                "CrowdSeg": 0.9224826097488403,
+                "MV": 0.864845871925354,
+                "Spatial-STAPLE": 0.8675637245178223,
+                "Supervised-GT": 0.9255974292755127
+            }
+        },
+        {
+            "sample_index": 40,
+            "file_name": "sample_40.png",
+            "sample_dir": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0040_sample_40",
+            "figure_path": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0040_sample_40/input_anns_predictions.png",
+            "figure_paths": {
+                "input_anns_predictions": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0040_sample_40/input_anns_predictions.png",
+                "ctgce_lambdas": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0040_sample_40/ctgce_lambdas.png",
+                "crowdseg_confusion_matrices": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0040_sample_40/crowdseg_confusion_matrices.png"
+            },
+            "arrays_path": null,
+            "sample_dice": {
+                "CT-GCE": 0.9409561157226562,
+                "CrowdSeg": 0.9411177635192871,
+                "MV": 0.9219265580177307,
+                "Spatial-STAPLE": 0.9220716953277588,
+                "Supervised-GT": 0.9375662803649902
+            }
+        },
+        {
+            "sample_index": 50,
+            "file_name": "sample_50.png",
+            "sample_dir": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0050_sample_50",
+            "figure_path": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0050_sample_50/input_anns_predictions.png",
+            "figure_paths": {
+                "input_anns_predictions": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0050_sample_50/input_anns_predictions.png",
+                "ctgce_lambdas": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0050_sample_50/ctgce_lambdas.png",
+                "crowdseg_confusion_matrices": "/content/drive/MyDrive/CrowdSegmenter-CT-GCE/results/visualizations/oxfordiiitpet/sample_0050_sample_50/crowdseg_confusion_matrices.png"
+            },
+            "arrays_path": null,
+            "sample_dice": {
+                "CT-GCE": 0.9766853451728821,
+                "CrowdSeg": 0.97928786277771,
+                "MV": 0.9850683808326721,
+                "Spatial-STAPLE": 0.9850085973739624,
+                "Supervised-GT": 0.9841370582580566
+            }
+        }
+    ]
+}

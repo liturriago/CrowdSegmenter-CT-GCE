@@ -470,7 +470,11 @@ def test_cli_data_and_output_dir_overrides(tmp_path: Path) -> None:
 def test_experiment_notebooks_are_valid_and_reference_real_files() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     nb_root = repo_root / "notebooks" / "experiments"
-    nb_paths = sorted(nb_root.rglob("*.ipynb"))
+    nb_paths = [
+        p
+        for p in sorted(nb_root.rglob("*.ipynb"))
+        if not p.relative_to(nb_root).as_posix().startswith("tgce_ssps/")
+    ]
     rel = {p.relative_to(nb_root).as_posix() for p in nb_paths}
     expected = {
         "baselines/naip_wellpad.ipynb",
@@ -493,12 +497,6 @@ def test_experiment_notebooks_are_valid_and_reference_real_files() -> None:
         "ctgce/train_riga_ctgce.ipynb",
         "supervised/train_naip_wellpad_supervised.ipynb",
         "supervised/train_oxfordiiitpet_supervised.ipynb",
-        "tgce_ssps/optimize_naip_wellpad_tgce_ssps.ipynb",
-        "tgce_ssps/optimize_oxfordiiitpet_tgce_ssps.ipynb",
-        "tgce_ssps/optimize_riga_tgce_ssps.ipynb",
-        "tgce_ssps/train_naip_wellpad_tgce_ssps.ipynb",
-        "tgce_ssps/train_oxfordiiitpet_tgce_ssps.ipynb",
-        "tgce_ssps/train_riga_tgce_ssps.ipynb",
         "visualization/naip_wellpad.ipynb",
         "visualization/oxfordiiitpet.ipynb",
         "visualization/riga.ipynb",
