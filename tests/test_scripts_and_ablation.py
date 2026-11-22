@@ -31,6 +31,7 @@ from scripts.train_crowdseg import run_crowdseg_experiment
 from scripts.train_ctgce import run_ctgce_experiment
 from scripts.train_supervised import run_supervised_experiment
 from scripts.visualize_predictions import run_visual_predictions
+from scripts._cli_utils import discover_checkpoints
 from crowdsegmenter.visualization import annotator_masks_to_ordinal, denormalize_image
 
 
@@ -344,6 +345,28 @@ def test_train_eval_baselines_and_ablation_end_to_end(tmp_path: Path) -> None:
         assert arrs["crowdseg_cm"].shape == (3, 2, 2)
         assert np.allclose(arrs["crowdseg_cm"].sum(axis=1), np.ones((3, 2)), atol=1e-4)
         assert set(np.unique(arrs["gt_ordinal"]).tolist()).issubset({0, 1})
+
+    # 6b. --results_dir auto-discovery selects only existing checkpoints (+ baselines)
+    res_root = tmp_path / "auto_results"
+    for sub, src in (
+        ("ctgce/oxfordiiitpet/ct_gce_final.pth", tmp_path / "out_ct" / "ct_gce_final.pth"),
+        ("crowdseg/oxfordiiitpet/crowdseg_final.pth", tmp_path / "out_cs" / "crowdseg_final.pth"),
+    ):
+        dst = res_root / sub
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_bytes(src.read_bytes())
+    discovered = discover_checkpoints(res_root, "oxfordiiitpet")
+    assert set(discovered.keys()) == {"CT-GCE", "CrowdSeg"}
+
+    auto_vis = run_visual_predictions(
+        results_dir=res_root,
+        dataset="oxfordiiitpet",
+        config_overrides={"CT-GCE": ct_cfg, "CrowdSeg": cs_cfg, "MV": mv_cfg, "Spatial-STAPLE": st_cfg},
+        data_dir=data_dir,
+        output_dir=tmp_path / "visual_auto",
+        num_samples=1,
+    )
+    assert set(auto_vis["methods"]) == {"CT-GCE", "CrowdSeg", "MV", "Spatial-STAPLE"}
 
     # 7. CT-GCE component ablation suite
     ablation_payload = run_ct_gce_ablation_suite(ct_cfg, output_dir=tmp_path / "ablation_suite")

@@ -114,6 +114,7 @@ def run_benchmark_evaluation(
     annotharmony_weights: Optional[str | Path] = None,
     crowdseg_weights: Optional[str | Path] = None,
     supervised_weights: Optional[str | Path] = None,
+    results_dir: Optional[str | Path] = None,
     include_mv: bool = True,
     include_staple: bool = True,
     methods: Optional[Sequence[str]] = None,
@@ -135,6 +136,7 @@ def run_benchmark_evaluation(
         annotharmony_weights=annotharmony_weights,
         crowdseg_weights=crowdseg_weights,
         supervised_weights=supervised_weights,
+        results_dir=results_dir,
         include_mv=include_mv,
         include_staple=include_staple,
         methods=methods,
@@ -321,6 +323,15 @@ def main() -> None:
         help="Optional path to trained Supervised-GT oracle checkpoint (.pth).",
     )
     parser.add_argument(
+        "--results_dir",
+        type=str,
+        default=None,
+        help=(
+            "Optional root results folder to auto-discover trained checkpoints "
+            "(e.g. results/{ctgce,tgce_ssps,crowdseg,supervised}/{dataset}/*_final.pth)."
+        ),
+    )
+    parser.add_argument(
         "--no-mv",
         "--no_mv",
         dest="include_mv",
@@ -405,6 +416,7 @@ def main() -> None:
         annotharmony_weights=args.tgce_ssps_weights,
         crowdseg_weights=args.crowdseg_weights,
         supervised_weights=args.supervised_weights,
+        results_dir=args.results_dir,
         include_mv=args.include_mv,
         include_staple=args.include_staple,
         methods=args.methods,

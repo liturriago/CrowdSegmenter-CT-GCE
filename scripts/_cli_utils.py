@@ -187,11 +187,53 @@ def normalize_method_name(name: str) -> str:
     return _METHOD_ALIASES[key]
 
 
+_DISCOVERY_LAYOUT: Dict[str, Tuple[Tuple[str, ...], str]] = {
+    "CT-GCE": (("ctgce", "ct_gce"), "ct_gce_final.pth"),
+    "Annot-Harmony": (("tgce_ssps", "annot_harmony"), "tgce_ssps_final.pth"),
+    "CrowdSeg": (("crowdseg",), "crowdseg_final.pth"),
+    "Supervised-GT": (("supervised",), "supervised_final.pth"),
+}
+
+
+def _clean_opt_path(val: Optional[str | Path]) -> Optional[Path]:
+    if val is None:
+        return None
+    text = str(val).strip()
+    if not text or text.lower() in {"none", "null"}:
+        return None
+    return Path(text)
+
+
+def discover_checkpoints(
+    results_dir: str | Path,
+    dataset: Optional[str],
+) -> Dict[str, Path]:
+    """Scan standard training subfolders under ``results_dir`` for existing ``.pth`` checkpoints."""
+    root = Path(results_dir)
+    if not dataset or not root.is_dir():
+        return {}
+    ds_candidates = (
+        ("oxfordiiitpet", "oxford_iiitpet") if dataset == "oxfordiiitpet" else (dataset,)
+    )
+    found: Dict[str, Path] = {}
+    for method_name, (method_dirs, filename) in _DISCOVERY_LAYOUT.items():
+        for m_dir in method_dirs:
+            for d_dir in ds_candidates:
+                candidate = root / m_dir / d_dir / filename
+                if candidate.is_file():
+                    found[method_name] = candidate
+                    break
+            if method_name in found:
+                break
+    return found
+
+
 def resolve_method_selection(
     ctgce_weights: Optional[str | Path] = None,
     annotharmony_weights: Optional[str | Path] = None,
     crowdseg_weights: Optional[str | Path] = None,
     supervised_weights: Optional[str | Path] = None,
+    results_dir: Optional[str | Path] = None,
     include_mv: bool = True,
     include_staple: bool = True,
     methods: Optional[Sequence[str]] = None,
@@ -200,21 +242,26 @@ def resolve_method_selection(
 ) -> Tuple[Tuple[MethodSpec, ...], Dict[str, Path], Dict[str, Path]]:
     """Select active methods, validate available checkpoints, and resolve YAML configs.
 
-    Only deep-learning models whose weights path is provided are auto-selected,
-    making single-model or partial-subset benchmarks & visual runs seamless.
+    Explicit ``*_weights`` take precedence; when ``results_dir`` is provided,
+    available checkpoints under ``{results_dir}/{method}/{dataset}/`` are
+    discovered automatically. Only deep-learning models with resolved weights
+    are auto-selected unless ``methods`` names them explicitly.
     """
     all_specs = {spec.name: spec for spec in build_all_method_specs()}
     defaults = DEFAULT_DATASET_CONFIGS.get(dataset or "", {})
 
-    weights_map: Dict[str, Path] = {}
+    weights_map: Dict[str, Path] = (
+        discover_checkpoints(results_dir, dataset) if results_dir is not None else {}
+    )
     for key, val in (
         ("CT-GCE", ctgce_weights),
         ("Annot-Harmony", annotharmony_weights),
         ("CrowdSeg", crowdseg_weights),
         ("Supervised-GT", supervised_weights),
     ):
-        if val is not None:
-            weights_map[key] = Path(val)
+        cleaned = _clean_opt_path(val)
+        if cleaned is not None:
+            weights_map[key] = cleaned
 
     selected_specs: List[MethodSpec] = []
     if methods is not None:
