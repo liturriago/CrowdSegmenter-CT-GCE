@@ -1,5 +1,9 @@
 # CrowdSegmenter-CT-GCE
 
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)
+[![CI](https://img.shields.io/github/actions/workflow/status/liturriago/CrowdSegmenter-CT-GCE/ci.yml?style=for-the-badge&logo=github)](https://github.com/liturriago/CrowdSegmenter-CT-GCE/actions/workflows/ci.yml)
+
 Verified implementation and modular pipeline for **Category-Truncated Generalized Cross-Entropy (CT-GCE)** in multi-annotator semantic segmentation.
 
 ## Repository Structure
