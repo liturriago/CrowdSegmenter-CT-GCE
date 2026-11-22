@@ -361,7 +361,7 @@ def _save_sample_figures_pil(
 
 
 def _clean_image_axis(ax: Any, title: str, fontsize: int = 9, bold: bool = False) -> None:
-    ax.set_title(title, fontsize=fontsize, fontweight="bold" if bold else "normal")
+    ax.set_title(title, fontsize=fontsize, fontweight="bold" if bold else "normal", pad=6)
     ax.set_xticks([])
     ax.set_yticks([])
     ax.axis("on")
@@ -392,7 +392,7 @@ def _render_overview_matplotlib(
     n_pred_cols = max(1, len(artifact.predictions))
     n_cols = max(n_data_cols, n_pred_cols)
 
-    fig, axes = plt.subplots(2, n_cols, figsize=(2.7 * n_cols, 5.6), squeeze=False)
+    fig, axes = plt.subplots(2, n_cols, figsize=(2.7 * n_cols, 6.4), squeeze=False)
     for ax in axes.ravel():
         ax.axis("off")
 
@@ -438,18 +438,18 @@ def _render_overview_matplotlib(
             Patch(facecolor=tuple(c / 255.0 for c in _MISSING_RGB), label="Missing / Ignored")
         )
 
-    fig.legend(
+    legend = fig.legend(
         handles=legend_handles,
         loc="lower center",
-        bbox_to_anchor=(0.5, -0.02),
+        bbox_to_anchor=(0.5, 0.01),
         ncol=len(legend_handles),
         fontsize=8,
         frameon=True,
     )
-    fig.tight_layout(rect=(0.0, 0.05, 1.0, 1.0))
+    fig.tight_layout(rect=(0.0, 0.08, 1.0, 1.0), h_pad=2.6, w_pad=0.8)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path, dpi=dpi, bbox_inches="tight")
+    fig.savefig(output_path, dpi=dpi, bbox_inches="tight", bbox_extra_artists=(legend,))
     plt.close(fig)
     return output_path
 
@@ -486,7 +486,7 @@ def _render_scalar_grid_matplotlib(
             _clean_image_axis(ax, title_grid[r_idx][c_idx], fontsize=8)
 
     if last_im is not None:
-        fig.subplots_adjust(right=0.90, wspace=0.08, hspace=0.22)
+        fig.subplots_adjust(right=0.90, wspace=0.08, hspace=0.30)
         cbar_ax = fig.add_axes((0.92, 0.14, 0.018, 0.72))
         fig.colorbar(last_im, cax=cbar_ax, label=cbar_label)
 
