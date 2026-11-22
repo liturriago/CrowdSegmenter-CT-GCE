@@ -30,6 +30,8 @@ from scripts.train_tgce_ssps import run_annotharmony_experiment
 from scripts.train_crowdseg import run_crowdseg_experiment
 from scripts.train_ctgce import run_ctgce_experiment
 from scripts.train_supervised import run_supervised_experiment
+from scripts.visualize_predictions import run_visual_predictions
+from crowdsegmenter.visualization import annotator_masks_to_ordinal, denormalize_image
 
 
 def _build_synthetic_dataset(root: Path, n_per_split: int = 3) -> Path:
@@ -271,7 +273,79 @@ def test_train_eval_baselines_and_ablation_end_to_end(tmp_path: Path) -> None:
     assert (bench_out / "benchmark_nlc.csv").is_file()
     assert (bench_out / "benchmark_nlc.json").is_file()
 
-    # 5. CT-GCE component ablation suite
+    # 5. Flexible partial-subset benchmark (only CT-GCE + CrowdSeg + MV + Spatial-STAPLE) & single-model
+    partial_out = tmp_path / "benchmark_partial"
+    partial_payload = run_benchmark_evaluation(
+        ctgce_weights=tmp_path / "out_ct" / "ct_gce_final.pth",
+        crowdseg_weights=tmp_path / "out_cs" / "crowdseg_final.pth",
+        dataset="oxfordiiitpet",
+        config_overrides={
+            "CT-GCE": ct_cfg,
+            "CrowdSeg": cs_cfg,
+            "MV": mv_cfg,
+            "Spatial-STAPLE": st_cfg,
+        },
+        data_dir=data_dir,
+        output_dir=partial_out,
+        eval_nlc=False,
+    )
+    assert set(partial_payload["methods"].keys()) == {"CT-GCE", "CrowdSeg", "MV", "Spatial-STAPLE"}
+    assert partial_payload["reference"] == "CT-GCE"
+
+    single_out = tmp_path / "benchmark_single"
+    single_payload = run_benchmark_evaluation(
+        annotharmony_weights=tmp_path / "out_ah" / "tgce_ssps_final.pth",
+        include_mv=False,
+        include_staple=False,
+        dataset="oxfordiiitpet",
+        config_overrides={"Annot-Harmony": ah_cfg},
+        data_dir=data_dir,
+        output_dir=single_out,
+        eval_nlc=False,
+    )
+    assert set(single_payload["methods"].keys()) == {"Annot-Harmony"}
+    assert single_payload["reference"] == "Annot-Harmony"
+    assert (single_out / "benchmark_gt.csv").is_file()
+
+    with pytest.raises(ValueError, match="requires a checkpoint"):
+        run_benchmark_evaluation(
+            methods=["CrowdSeg"],
+            dataset="oxfordiiitpet",
+            config_overrides={"CrowdSeg": cs_cfg},
+        )
+
+    # 6. Visual predictions & interpretability maps (ordinal masks, GT, lambdas, CrowdSeg CMs)
+    vis_out = tmp_path / "visual_out"
+    vis_payload = run_visual_predictions(
+        ctgce_weights=tmp_path / "out_ct" / "ct_gce_final.pth",
+        annotharmony_weights=tmp_path / "out_ah" / "tgce_ssps_final.pth",
+        crowdseg_weights=tmp_path / "out_cs" / "crowdseg_final.pth",
+        dataset="oxfordiiitpet",
+        config_overrides={
+            "CT-GCE": ct_cfg,
+            "Annot-Harmony": ah_cfg,
+            "CrowdSeg": cs_cfg,
+            "MV": mv_cfg,
+            "Spatial-STAPLE": st_cfg,
+        },
+        data_dir=data_dir,
+        output_dir=vis_out,
+        split="test",
+        num_samples=2,
+        save_npz=True,
+    )
+    assert len(vis_payload["samples"]) == 2
+    assert (vis_out / "visual_summary.json").is_file()
+    first_entry = vis_payload["samples"][0]
+    assert Path(first_entry["figure_path"]).is_file()
+    with np.load(first_entry["arrays_path"]) as arrs:
+        assert arrs["ct_gce_lambda"].shape == (3, 2, 32, 32)
+        assert arrs["annot_harmony_reliability"].shape == (3, 32, 32)
+        assert arrs["crowdseg_cm"].shape == (3, 2, 2)
+        assert np.allclose(arrs["crowdseg_cm"].sum(axis=1), np.ones((3, 2)), atol=1e-4)
+        assert set(np.unique(arrs["gt_ordinal"]).tolist()).issubset({0, 1})
+
+    # 7. CT-GCE component ablation suite
     ablation_payload = run_ct_gce_ablation_suite(ct_cfg, output_dir=tmp_path / "ablation_suite")
     assert set(ablation_payload["arms"].keys()) == {
         "plain_gce",
@@ -284,6 +358,26 @@ def test_train_eval_baselines_and_ablation_end_to_end(tmp_path: Path) -> None:
     assert (tmp_path / "ablation_suite" / "ablation_gt.csv").is_file()
 
 
+def test_visualization_helpers_handle_ignored_pixels_and_denorm() -> None:
+    img = torch.tensor([[[0.0, 1.0]], [[-1.0, 2.0]], [[0.5, 0.5]]])
+    rgb = denormalize_image(img, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+    assert rgb.shape == (1, 2, 3)
+    assert float(rgb.min()) >= 0.0 and float(rgb.max()) <= 1.0
+
+    # R=2, K=2, H=1, W=2 -> channel k*R + r
+    masks = torch.tensor(
+        [
+            [[1.0, 0.6]],  # k=0, r=0 | r=0 col1 ignored
+            [[0.0, 1.0]],  # k=0, r=1
+            [[0.0, 0.6]],  # k=1, r=0
+            [[1.0, 0.0]],  # k=1, r=1
+        ]
+    )
+    ord_masks, valid = annotator_masks_to_ordinal(masks, num_annotators=2, num_classes=2, ignored_value=0.6)
+    assert ord_masks.tolist() == [[[0, -1]], [[1, 0]]]
+    assert valid.tolist() == [[[True, False]], [[True, True]]]
+
+
 def test_scripts_cli_help_entrypoints() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     for script in (
@@ -294,6 +388,7 @@ def test_scripts_cli_help_entrypoints() -> None:
         "scripts/evaluate_baselines.py",
         "scripts/evaluate_benchmark.py",
         "scripts/evaluate_ablation.py",
+        "scripts/visualize_predictions.py",
         "scripts/optimize_ct_gce.py",
         "scripts/optimize_tgce_ssps.py",
         "scripts/optimize_noisy_label.py",
@@ -358,6 +453,9 @@ def test_experiment_notebooks_are_valid_and_reference_real_files() -> None:
         "tgce_ssps/train_naip_wellpad_tgce_ssps.ipynb",
         "tgce_ssps/train_oxfordiiitpet_tgce_ssps.ipynb",
         "tgce_ssps/train_riga_tgce_ssps.ipynb",
+        "visualization/naip_wellpad.ipynb",
+        "visualization/oxfordiiitpet.ipynb",
+        "visualization/riga.ipynb",
     }
     assert rel == expected
     for nb_path in nb_paths:

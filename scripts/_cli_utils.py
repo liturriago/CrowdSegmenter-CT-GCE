@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 import sys
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Sequence, Type
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Type
 
 import numpy as np
 import torch
@@ -24,8 +25,273 @@ def _enable_realtime_logs() -> None:
 
 from crowdsegmenter.config import ExperimentConfig
 from crowdsegmenter.data.loader import CrowdSegmenterDataLoader
+from crowdsegmenter.models.annot_harmony import AnnotHarmony
+from crowdsegmenter.models.baselines import MajorityVoting, SpatialSTAPLE
+from crowdsegmenter.models.crowdseg import CrowdSeg
+from crowdsegmenter.models.ctgce import CTGCEModel
+from crowdsegmenter.models.supervised import SupervisedResUNet
 from crowdsegmenter.utils.metrics import MetricTracker
 from crowdsegmenter.utils.reproducibility import set_seed
+
+
+DEFAULT_DATASET_CONFIGS: Dict[str, Dict[str, str]] = {
+    "oxfordiiitpet": {
+        "CT-GCE": "configs/training/ctgce/oxfordiiitpet.yaml",
+        "Annot-Harmony": "configs/training/tgce_ssps/oxfordiiitpet.yaml",
+        "CrowdSeg": "configs/training/crowdseg/oxfordiiitpet.yaml",
+        "MV": "configs/training/MV/oxfordiiitpet.yaml",
+        "Spatial-STAPLE": "configs/training/spatial_staple/oxfordiiitpet.yaml",
+        "Supervised-GT": "configs/training/supervised/oxfordiiitpet.yaml",
+    },
+    "riga": {
+        "CT-GCE": "configs/training/ctgce/riga.yaml",
+        "Annot-Harmony": "configs/training/tgce_ssps/riga.yaml",
+        "CrowdSeg": "configs/training/crowdseg/riga.yaml",
+        "MV": "configs/training/MV/riga.yaml",
+        "Spatial-STAPLE": "configs/training/spatial_staple/riga.yaml",
+    },
+    "naip_wellpad": {
+        "CT-GCE": "configs/training/ctgce/naip_wellpad.yaml",
+        "Annot-Harmony": "configs/training/tgce_ssps/naip_wellpad.yaml",
+        "CrowdSeg": "configs/training/crowdseg/naip_wellpad.yaml",
+        "MV": "configs/training/MV/naip_wellpad.yaml",
+        "Spatial-STAPLE": "configs/training/spatial_staple/naip_wellpad.yaml",
+        "Supervised-GT": "configs/training/supervised/naip_wellpad.yaml",
+    },
+}
+
+_METHOD_ALIASES: Dict[str, str] = {
+    "ct-gce": "CT-GCE",
+    "ctgce": "CT-GCE",
+    "ct_gce": "CT-GCE",
+    "annot-harmony": "Annot-Harmony",
+    "annotharmony": "Annot-Harmony",
+    "annot_harmony": "Annot-Harmony",
+    "tgce-ssps": "Annot-Harmony",
+    "tgce_ssps": "Annot-Harmony",
+    "crowdseg": "CrowdSeg",
+    "mv": "MV",
+    "majority-voting": "MV",
+    "majority_voting": "MV",
+    "spatial-staple": "Spatial-STAPLE",
+    "spatial_staple": "Spatial-STAPLE",
+    "staple": "Spatial-STAPLE",
+    "supervised-gt": "Supervised-GT",
+    "supervised_gt": "Supervised-GT",
+    "supervised": "Supervised-GT",
+}
+
+
+@dataclass(frozen=True)
+class MethodSpec:
+    """Descriptor pairing a benchmarked method name with its builder and optional weights."""
+
+    name: str
+    slug: str
+    builder: Callable[[ExperimentConfig, Optional[float]], nn.Module]
+    weights_key: Optional[str] = None
+
+
+def _build_neural_model(
+    cls: type[nn.Module],
+    cfg: ExperimentConfig,
+) -> nn.Module:
+    # Avoid downloading ImageNet weights before overwriting parameters from checkpoint
+    infer_model_cfg = cfg.model.model_copy(update={"pretrained": False})
+    return cls(infer_model_cfg)
+
+
+def load_checkpoint(
+    model: nn.Module,
+    weights_path: str | Path,
+    device: torch.device,
+) -> nn.Module:
+    """Load state_dict from ``weights_path`` into ``model`` and switch to eval mode."""
+    ckpt_path = Path(weights_path)
+    if not ckpt_path.is_file():
+        raise FileNotFoundError(f"Checkpoint file not found: {ckpt_path}")
+
+    payload = torch.load(ckpt_path, map_location=device, weights_only=True)
+    if isinstance(payload, dict):
+        if "model_state_dict" in payload:
+            state_dict = payload["model_state_dict"]
+        elif "state_dict" in payload:
+            state_dict = payload["state_dict"]
+        else:
+            state_dict = payload
+    else:
+        state_dict = payload
+
+    model.load_state_dict(state_dict)
+    model.eval()
+    return model
+
+
+def build_all_method_specs() -> Tuple[MethodSpec, ...]:
+    """Return canonical descriptors for all supported neural and classical methods."""
+    return (
+        MethodSpec(
+            name="CT-GCE",
+            slug="ct_gce",
+            weights_key="CT-GCE",
+            builder=lambda cfg, _: _build_neural_model(CTGCEModel, cfg),
+        ),
+        MethodSpec(
+            name="Annot-Harmony",
+            slug="annot_harmony",
+            weights_key="Annot-Harmony",
+            builder=lambda cfg, _: _build_neural_model(AnnotHarmony, cfg),
+        ),
+        MethodSpec(
+            name="CrowdSeg",
+            slug="crowdseg",
+            weights_key="CrowdSeg",
+            builder=lambda cfg, _: _build_neural_model(CrowdSeg, cfg),
+        ),
+        MethodSpec(
+            name="MV",
+            slug="mv",
+            builder=lambda cfg, _: MajorityVoting(
+                num_annotators=cfg.model.num_annotators,
+                num_classes=cfg.model.num_classes,
+                ignored_value=cfg.data.ignored_value,
+            ),
+        ),
+        MethodSpec(
+            name="Spatial-STAPLE",
+            slug="spatial_staple",
+            builder=lambda cfg, beta: SpatialSTAPLE(
+                num_annotators=cfg.model.num_annotators,
+                num_classes=cfg.model.num_classes,
+                ignored_value=cfg.data.ignored_value,
+                beta=beta if beta is not None else cfg.model.staple_beta,
+                max_iter=cfg.model.staple_max_iter,
+                tol=cfg.model.staple_tol,
+            ),
+        ),
+        MethodSpec(
+            name="Supervised-GT",
+            slug="supervised",
+            weights_key="Supervised-GT",
+            builder=lambda cfg, _: _build_neural_model(SupervisedResUNet, cfg),
+        ),
+    )
+
+
+def normalize_method_name(name: str) -> str:
+    """Normalize method names or CLI slugs to canonical display names."""
+    key = name.strip().lower()
+    if key not in _METHOD_ALIASES:
+        valid = sorted({spec.name for spec in build_all_method_specs()})
+        raise ValueError(f"Unknown method {name!r}. Expected one of {valid}.")
+    return _METHOD_ALIASES[key]
+
+
+def resolve_method_selection(
+    ctgce_weights: Optional[str | Path] = None,
+    annotharmony_weights: Optional[str | Path] = None,
+    crowdseg_weights: Optional[str | Path] = None,
+    supervised_weights: Optional[str | Path] = None,
+    include_mv: bool = True,
+    include_staple: bool = True,
+    methods: Optional[Sequence[str]] = None,
+    dataset: Optional[str] = "oxfordiiitpet",
+    config_overrides: Optional[Mapping[str, str | Path]] = None,
+) -> Tuple[Tuple[MethodSpec, ...], Dict[str, Path], Dict[str, Path]]:
+    """Select active methods, validate available checkpoints, and resolve YAML configs.
+
+    Only deep-learning models whose weights path is provided are auto-selected,
+    making single-model or partial-subset benchmarks & visual runs seamless.
+    """
+    all_specs = {spec.name: spec for spec in build_all_method_specs()}
+    defaults = DEFAULT_DATASET_CONFIGS.get(dataset or "", {})
+
+    weights_map: Dict[str, Path] = {}
+    for key, val in (
+        ("CT-GCE", ctgce_weights),
+        ("Annot-Harmony", annotharmony_weights),
+        ("CrowdSeg", crowdseg_weights),
+        ("Supervised-GT", supervised_weights),
+    ):
+        if val is not None:
+            weights_map[key] = Path(val)
+
+    selected_specs: List[MethodSpec] = []
+    if methods is not None:
+        seen: set[str] = set()
+        for raw_name in methods:
+            canonical = normalize_method_name(raw_name)
+            if canonical in seen:
+                continue
+            seen.add(canonical)
+            spec = all_specs[canonical]
+            if spec.weights_key is not None and spec.weights_key not in weights_map:
+                raise ValueError(
+                    f"Method {canonical!r} requires a checkpoint path, but none was provided."
+                )
+            selected_specs.append(spec)
+    else:
+        for spec in build_all_method_specs():
+            if spec.weights_key is not None:
+                if spec.weights_key in weights_map:
+                    selected_specs.append(spec)
+            elif spec.name == "MV" and include_mv:
+                if (config_overrides or {}).get("MV") is not None or "MV" in defaults:
+                    selected_specs.append(spec)
+            elif spec.name == "Spatial-STAPLE" and include_staple:
+                if (
+                    (config_overrides or {}).get("Spatial-STAPLE") is not None
+                    or "Spatial-STAPLE" in defaults
+                ):
+                    selected_specs.append(spec)
+
+    if not selected_specs:
+        raise ValueError(
+            "No methods selected. Provide at least one model checkpoint or enable MV / Spatial-STAPLE."
+        )
+
+    active_weights = {
+        spec.weights_key: weights_map[spec.weights_key]
+        for spec in selected_specs
+        if spec.weights_key is not None
+    }
+    for name, wpath in active_weights.items():
+        if not wpath.is_file():
+            raise FileNotFoundError(f"Missing checkpoint for {name}: {wpath}")
+
+    resolved_configs: Dict[str, Path] = {}
+    for spec in selected_specs:
+        override = (config_overrides or {}).get(spec.name)
+        cfg_val = override if override is not None else defaults.get(spec.name)
+        if cfg_val is None:
+            raise ValueError(
+                f"No YAML config resolved for {spec.name!r} (dataset={dataset!r})."
+            )
+        resolved_configs[spec.name] = Path(cfg_val)
+
+    return tuple(selected_specs), active_weights, resolved_configs
+
+
+def resolve_reference_method(
+    selected_specs: Sequence[MethodSpec],
+    reference: Optional[str] = None,
+) -> str:
+    """Resolve the statistical reference method from the active selection."""
+    selected_names = [spec.name for spec in selected_specs]
+    if reference is not None:
+        canonical = normalize_method_name(reference)
+        if canonical not in selected_names:
+            raise ValueError(
+                f"Reference method {canonical!r} is not among active methods {selected_names}."
+            )
+        return canonical
+
+    if "CT-GCE" in selected_names:
+        return "CT-GCE"
+    for spec in selected_specs:
+        if spec.weights_key is not None:
+            return spec.name
+    return selected_names[0]
 
 
 def serialize_tensors(obj: Any) -> Any:
