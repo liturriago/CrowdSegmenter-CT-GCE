@@ -1,20 +1,20 @@
 # CrowdSegmenter-CT-GCE
 
-Implementación verificada y pipeline modular para **Category-Truncated Generalized Cross-Entropy (CT-GCE)** en segmentación semántica con múltiples anotadores.
+Verified implementation and modular pipeline for **Category-Truncated Generalized Cross-Entropy (CT-GCE)** in multi-annotator semantic segmentation.
 
-## Estructura del repositorio
+## Repository Structure
 
 ```text
 CrowdSegmenter-CT-GCE/
-├── .github/workflows/ci.yml              # CI con pytest
-├── pyproject.toml                        # Empaquetado src/ y dependencias
+├── .github/workflows/ci.yml              # GitHub Actions CI running pytest
+├── pyproject.toml                        # Package metadata and dependencies
 ├── configs/
-│   ├── training/                         # Configuraciones YAML (ctgce, crowdseg, MV, spatial_staple, supervised)
-│   └── optimization/                     # Espacios de búsqueda Optuna (ctgce, crowdseg)
+│   ├── training/                         # Training YAML configs (ctgce, crowdseg, MV, spatial_staple, supervised)
+│   └── optimization/                     # Optuna hyperparameter search configs (ctgce, crowdseg)
 ├── src/
-│   ├── CrowdSegmenter_CT_GCE/            # Núcleo matemático verificado (__provenance__)
-│   ├── CrowdSegmenter_CT_GCE_Benchmark/    # Harness de métricas piloto y evaluación NLC
-│   └── crowdsegmenter/                   # Paquete MLOps de entrenamiento, evaluación y visualización
+│   ├── CrowdSegmenter_CT_GCE/            # Verified mathematical core (__provenance__)
+│   ├── CrowdSegmenter_CT_GCE_Benchmark/    # Pilot metrics and zero-GT NLC evaluation utilities
+│   └── crowdsegmenter/                   # MLOps package for data loading, training, evaluation, and visualization
 │       ├── data/
 │       ├── losses/
 │       ├── models/
@@ -22,33 +22,33 @@ CrowdSegmenter-CT-GCE/
 │       ├── training/
 │       ├── utils/
 │       └── visualization/
-├── scripts/                              # Entrenamiento, Optuna, benchmark, ablación y visualización
-│   └── pilots/                           # Scripts auxiliares del PoC
+├── scripts/                              # Training, Optuna tuning, benchmarking, ablation, and visualization CLIs
+│   └── pilots/                           # Auxiliary proof-of-concept scripts
 ├── notebooks/
-│   ├── pilots/                           # Notebooks de verificación y estudios piloto
-│   └── experiments/                      # Notebooks Colab (ctgce, crowdseg, baselines, supervised, benchmark, visualization)
+│   ├── pilots/                           # Verification and pilot-study notebooks
+│   └── experiments/                      # Colab notebooks (ctgce, crowdseg, baselines, supervised, benchmark, visualization)
 ├── results/
-│   ├── benchmark/                        # Tablas CSV/JSON y métricas por muestra (Oxford-IIIT Pet, RIGA, NAIP Well Pad)
-│   ├── optuna/                           # Estudios y gráficas de búsqueda de hiperparámetros
-│   └── visualizations/                   # Paneles y mapas Λ/CM a 300 DPI organizados por muestra
-└── tests/                                # Suite de pruebas (smoke, invariants, synthetic, audit, configs, scripts)
+│   ├── benchmark/                        # CSV/JSON summary tables and per-sample metrics (Oxford-IIIT Pet, RIGA, NAIP Well Pad)
+│   ├── optuna/                           # Optuna study databases, summaries, and diagnostic plots
+│   └── visualizations/                   # 300-DPI sample prediction panels and Λ / confusion-matrix maps
+└── tests/                                # Multi-level test suite (smoke, invariants, synthetic, audit, configs, scripts)
 ```
 
-## Métodos y datasets incluidos
+## Datasets and Methods
 
 - **Datasets**: `oxfordiiitpet`, `riga`, `naip_wellpad`.
-- **Métodos evaluados**: **CT-GCE** (propuesto), **CrowdSeg**, **Majority Voting (MV)**, **Spatial-STAPLE** y **Supervised-GT** *(oráculo cuando hay Ground Truth)*.
+- **Methods**: **CT-GCE** (proposed), **CrowdSeg**, **Majority Voting (MV)**, **Spatial-STAPLE**, and **Supervised-GT** *(oracle upper bound on datasets with ground truth)*.
 
-## Scripts principales
+## Main CLI Entrypoints
 
-- **Entrenamiento**: `scripts/train_ctgce.py`, `scripts/train_crowdseg.py`, `scripts/train_supervised.py`
-- **Baselines clásicos**: `scripts/evaluate_baselines.py`
-- **Optimización de hiperparámetros (Optuna)**: `scripts/optimize_ct_gce.py`, `scripts/optimize_noisy_label.py`
-- **Benchmark estadístico**: `scripts/evaluate_benchmark.py` (flexible en los `--*_weights` proporcionados, con pruebas pareadas e integración `--eval-nlc`)
-- **Ablación CT-GCE**: `scripts/evaluate_ablation.py`
-- **Visualización de predicciones (300 DPI)**: `scripts/visualize_predictions.py`
+- **Training**: `scripts/train_ctgce.py`, `scripts/train_crowdseg.py`, `scripts/train_supervised.py`
+- **Classical Baselines**: `scripts/evaluate_baselines.py`
+- **Hyperparameter Optimization (Optuna)**: `scripts/optimize_ct_gce.py`, `scripts/optimize_noisy_label.py`
+- **Statistical Benchmark**: `scripts/evaluate_benchmark.py` (flexible over provided `--*_weights`, paired significance tests, and `--eval-nlc`)
+- **CT-GCE Component Ablation**: `scripts/evaluate_ablation.py`
+- **Visual Prediction Export (300 DPI)**: `scripts/visualize_predictions.py`
 
-## Instalación y pruebas
+## Installation and Testing
 
 ```bash
 python -m venv .venv
