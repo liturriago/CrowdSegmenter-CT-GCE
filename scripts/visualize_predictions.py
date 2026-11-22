@@ -24,7 +24,7 @@ from crowdsegmenter.visualization import (
     extract_sample_artifact,
     gt_to_ordinal,
     save_sample_arrays,
-    save_sample_figure,
+    save_sample_figures,
 )
 from scripts._cli_utils import (
     DEFAULT_DATASET_CONFIGS,
@@ -206,6 +206,7 @@ def run_visual_predictions(
             else f"sample_{idx}.png"
         )
         stem = Path(file_name).stem
+        sample_dir = out_root / f"sample_{idx:04d}_{stem}"
         artifact = extract_sample_artifact(
             sample_index=idx,
             file_name=file_name,
@@ -214,28 +215,28 @@ def run_visual_predictions(
             ref_cfg=ref_cfg,
             device=device,
         )
-        fig_path = save_sample_figure(
+        fig_paths = save_sample_figures(
             artifact,
-            output_path=out_root / f"sample_{idx:04d}_{stem}.png",
+            sample_dir=sample_dir,
             class_names=class_names,
         )
         npz_path = (
-            save_sample_arrays(artifact, out_root / f"sample_{idx:04d}_{stem}_arrays.npz")
+            save_sample_arrays(artifact, sample_dir / "arrays.npz")
             if save_npz
             else None
         )
         entry = {
             "sample_index": idx,
             "file_name": file_name,
-            "figure_path": str(fig_path),
+            "sample_dir": str(sample_dir),
+            "figure_path": str(fig_paths["input_anns_predictions"]),
+            "figure_paths": {k: str(v) for k, v in fig_paths.items()},
             "arrays_path": str(npz_path) if npz_path is not None else None,
             "sample_dice": {p.name: p.sample_dice for p in artifact.predictions},
         }
         saved_entries.append(entry)
-        dice_summary = ", ".join(
-            f"{k}={v:.3f}" for k, v in entry["sample_dice"].items() if v is not None
-        )
-        print(f"  Saved {fig_path.name} ({dice_summary})", flush=True)
+        saved_names = ", ".join(p.name for p in fig_paths.values())
+        print(f"  Saved {sample_dir.name}/ [{saved_names}]", flush=True)
 
     summary_payload: Dict[str, Any] = {
         "dataset": dataset,

@@ -11,6 +11,7 @@ from crowdsegmenter.visualization.predictions import (
     probs_to_ordinal,
     save_sample_arrays,
     save_sample_figure,
+    save_sample_figures,
 )
 
 __all__ = [
@@ -24,4 +25,5 @@ __all__ = [
     "probs_to_ordinal",
     "save_sample_arrays",
     "save_sample_figure",
+    "save_sample_figures",
 ]

@@ -315,7 +315,7 @@ def test_train_eval_baselines_and_ablation_end_to_end(tmp_path: Path) -> None:
             config_overrides={"CrowdSeg": cs_cfg},
         )
 
-    # 6. Visual predictions & interpretability maps (ordinal masks, GT, lambdas, CrowdSeg CMs)
+    # 6. Visual predictions & interpretability maps (per-sample folder, 300 DPI, split figures)
     vis_out = tmp_path / "visual_out"
     vis_payload = run_visual_predictions(
         ctgce_weights=tmp_path / "out_ct" / "ct_gce_final.pth",
@@ -338,8 +338,26 @@ def test_train_eval_baselines_and_ablation_end_to_end(tmp_path: Path) -> None:
     assert len(vis_payload["samples"]) == 2
     assert (vis_out / "visual_summary.json").is_file()
     first_entry = vis_payload["samples"][0]
-    assert Path(first_entry["figure_path"]).is_file()
+    first_dir = Path(first_entry["sample_dir"])
+    assert first_dir.is_dir()
+    assert set(first_entry["figure_paths"].keys()) == {
+        "input_anns_predictions",
+        "ctgce_lambdas",
+        "annot_harmony_reliability",
+        "crowdseg_confusion_matrices",
+    }
+    from PIL import Image as _PILImage
+
+    for fpath in first_entry["figure_paths"].values():
+        p = Path(fpath)
+        assert p.is_file()
+        assert p.parent == first_dir
+        with _PILImage.open(p) as im:
+            dpi_x, dpi_y = im.info.get("dpi", (0, 0))
+            assert abs(float(dpi_x) - 300.0) <= 1.0 and abs(float(dpi_y) - 300.0) <= 1.0
+
     with np.load(first_entry["arrays_path"]) as arrs:
+        assert Path(first_entry["arrays_path"]).parent == first_dir
         assert arrs["ct_gce_lambda"].shape == (3, 2, 32, 32)
         assert arrs["annot_harmony_reliability"].shape == (3, 32, 32)
         assert arrs["crowdseg_cm"].shape == (3, 2, 2)
@@ -367,6 +385,11 @@ def test_train_eval_baselines_and_ablation_end_to_end(tmp_path: Path) -> None:
         num_samples=1,
     )
     assert set(auto_vis["methods"]) == {"CT-GCE", "CrowdSeg", "MV", "Spatial-STAPLE"}
+    assert set(auto_vis["samples"][0]["figure_paths"].keys()) == {
+        "input_anns_predictions",
+        "ctgce_lambdas",
+        "crowdseg_confusion_matrices",
+    }
 
     # 7. CT-GCE component ablation suite
     ablation_payload = run_ct_gce_ablation_suite(ct_cfg, output_dir=tmp_path / "ablation_suite")

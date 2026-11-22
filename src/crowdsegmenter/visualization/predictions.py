@@ -1,4 +1,4 @@
-"""Render ordinal segmentation predictions, annotator masks, GT, lambdas, and CMs."""
+"""Render publication-ready ordinal segmentation & interpretability figures per sample."""
 
 from __future__ import annotations
 
@@ -14,6 +14,8 @@ from PIL import Image, ImageDraw
 from crowdsegmenter.config import ExperimentConfig
 from crowdsegmenter.models.baselines import BaselineModel
 from crowdsegmenter.utils.metrics import MetricTracker
+
+_PUBLICATION_DPI = 300
 
 # Discrete palette: -1 = Missing/Ignored (gray), 0 = Background, 1..4 = Foreground classes
 _MISSING_RGB = (156, 163, 175)
@@ -262,50 +264,13 @@ def _scalar_to_rgb(field: np.ndarray) -> np.ndarray:
     return np.stack([r, g, b], axis=-1)
 
 
-def _render_sample_pil(artifact: SampleVisualArtifact, output_path: Path) -> Path:
-    """Fallback PIL composite grid renderer when matplotlib is not installed."""
-    rows: List[List[Tuple[str, Image.Image]]] = []
-    h, w = artifact.image_rgb.shape[:2]
-
-    row0: List[Tuple[str, Image.Image]] = [
-        ("Input", Image.fromarray((artifact.image_rgb * 255).astype(np.uint8))),
-    ]
-    if artifact.gt_ordinal is not None:
-        row0.append(("GT", Image.fromarray(_ordinal_to_rgb(artifact.gt_ordinal))))
-    for r in range(artifact.num_annotators):
-        lbl = f"Ann {r}" if artifact.annotator_valid[r].any() else f"Ann {r} (missing)"
-        row0.append((lbl, Image.fromarray(_ordinal_to_rgb(artifact.annotator_ordinals[r]))))
-    rows.append(row0)
-
-    row1: List[Tuple[str, Image.Image]] = []
-    for pred in artifact.predictions:
-        title = f"{pred.name} ({pred.sample_dice:.3f})" if pred.sample_dice is not None else pred.name
-        row1.append((title, Image.fromarray(_ordinal_to_rgb(pred.pred_ordinal))))
-    rows.append(row1)
-
-    for pred in artifact.predictions:
-        if pred.lambda_field is not None:
-            for k in range(artifact.num_classes):
-                lrow = [
-                    (f"CT-GCE lam k={k} r={r}", Image.fromarray(_scalar_to_rgb(pred.lambda_field[r, k])))
-                    for r in range(artifact.num_annotators)
-                ]
-                rows.append(lrow)
-        if pred.reliability_map is not None:
-            rrow = [
-                (f"Annot-H rel r={r}", Image.fromarray(_scalar_to_rgb(pred.reliability_map[r])))
-                for r in range(artifact.num_annotators)
-            ]
-            rows.append(rrow)
-        if pred.confusion_matrices is not None:
-            crow = []
-            for r in range(artifact.num_annotators):
-                cm = pred.confusion_matrices[r]
-                up = np.kron(cm, np.ones((max(1, h // cm.shape[0]), max(1, w // cm.shape[1])), dtype=np.float32))
-                im = Image.fromarray(_scalar_to_rgb(up)).resize((w, h), Image.NEAREST)
-                crow.append((f"CrowdSeg CM r={r}", im))
-            rows.append(crow)
-
+def _save_pil_grid(
+    rows: Sequence[Sequence[Tuple[str, Image.Image]]],
+    tile_size: Tuple[int, int],
+    output_path: Path,
+    dpi: int = _PUBLICATION_DPI,
+) -> Path:
+    w, h = tile_size
     max_cols = max(len(r) for r in rows)
     pad = 8
     header_h = 20
@@ -318,18 +283,95 @@ def _render_sample_pil(artifact: SampleVisualArtifact, output_path: Path) -> Pat
         y0 = pad + r_idx * (h + header_h + pad)
         for c_idx, (title, im) in enumerate(row):
             x0 = pad + c_idx * (w + pad)
-            draw.text((x0, y0), title[:24], fill=(20, 20, 20))
+            draw.text((x0, y0), title[:26], fill=(20, 20, 20))
             canvas.paste(im.resize((w, h), Image.NEAREST), (x0, y0 + header_h))
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    canvas.save(output_path)
+    canvas.save(output_path, dpi=(dpi, dpi))
     return output_path
 
 
-def _render_sample_matplotlib(
+def _save_sample_figures_pil(
+    artifact: SampleVisualArtifact,
+    sample_dir: Path,
+    dpi: int = _PUBLICATION_DPI,
+) -> Dict[str, Path]:
+    """Fallback PIL renderer when matplotlib is not installed."""
+    h, w = artifact.image_rgb.shape[:2]
+    saved: Dict[str, Path] = {}
+
+    row0: List[Tuple[str, Image.Image]] = [
+        ("Input", Image.fromarray((artifact.image_rgb * 255).astype(np.uint8))),
+    ]
+    if artifact.gt_ordinal is not None:
+        row0.append(("Ground Truth", Image.fromarray(_ordinal_to_rgb(artifact.gt_ordinal))))
+    for r in range(artifact.num_annotators):
+        lbl = f"Ann {r}" if artifact.annotator_valid[r].any() else f"Ann {r} (missing)"
+        row0.append((lbl, Image.fromarray(_ordinal_to_rgb(artifact.annotator_ordinals[r]))))
+    row1 = [(pred.name, Image.fromarray(_ordinal_to_rgb(pred.pred_ordinal))) for pred in artifact.predictions]
+    saved["input_anns_predictions"] = _save_pil_grid(
+        [row0, row1], (w, h), sample_dir / "input_anns_predictions.png", dpi=dpi
+    )
+
+    ctgce_pred = next((p for p in artifact.predictions if p.lambda_field is not None), None)
+    if ctgce_pred is not None and ctgce_pred.lambda_field is not None:
+        lam_rows = [
+            [
+                (f"Lambda k={k} Ann {r}", Image.fromarray(_scalar_to_rgb(ctgce_pred.lambda_field[r, k])))
+                for r in range(artifact.num_annotators)
+            ]
+            for k in range(artifact.num_classes)
+        ]
+        saved["ctgce_lambdas"] = _save_pil_grid(
+            lam_rows, (w, h), sample_dir / "ctgce_lambdas.png", dpi=dpi
+        )
+
+    ah_pred = next((p for p in artifact.predictions if p.reliability_map is not None), None)
+    if ah_pred is not None and ah_pred.reliability_map is not None:
+        ah_rows = [[
+            (f"Annot-H Rel Ann {r}", Image.fromarray(_scalar_to_rgb(ah_pred.reliability_map[r])))
+            for r in range(artifact.num_annotators)
+        ]]
+        saved["annot_harmony_reliability"] = _save_pil_grid(
+            ah_rows, (w, h), sample_dir / "annot_harmony_reliability.png", dpi=dpi
+        )
+
+    cs_pred = next((p for p in artifact.predictions if p.confusion_matrices is not None), None)
+    if cs_pred is not None and cs_pred.confusion_matrices is not None:
+        cs_rows = [[
+            (
+                f"CrowdSeg CM Ann {r}",
+                Image.fromarray(
+                    _scalar_to_rgb(
+                        np.kron(
+                            cs_pred.confusion_matrices[r],
+                            np.ones((max(1, h // cs_pred.confusion_matrices[r].shape[0]),
+                                     max(1, w // cs_pred.confusion_matrices[r].shape[1])), dtype=np.float32),
+                        )
+                    )
+                ),
+            )
+            for r in range(artifact.num_annotators)
+        ]]
+        saved["crowdseg_confusion_matrices"] = _save_pil_grid(
+            cs_rows, (w, h), sample_dir / "crowdseg_confusion_matrices.png", dpi=dpi
+        )
+
+    return saved
+
+
+def _clean_image_axis(ax: Any, title: str, fontsize: int = 9, bold: bool = False) -> None:
+    ax.set_title(title, fontsize=fontsize, fontweight="bold" if bold else "normal")
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.axis("on")
+
+
+def _render_overview_matplotlib(
     artifact: SampleVisualArtifact,
     output_path: Path,
     class_names: Sequence[str],
+    dpi: int = _PUBLICATION_DPI,
 ) -> Path:
     import matplotlib
 
@@ -338,7 +380,6 @@ def _render_sample_matplotlib(
     from matplotlib.colors import BoundaryNorm, ListedColormap
     from matplotlib.patches import Patch
 
-    # Discrete ordinal cmap covering -1 (missing) and 0..K-1
     colors = [tuple(c / 255.0 for c in _MISSING_RGB)] + [
         tuple(c / 255.0 for c in _CLASS_PALETTE_RGB[k % len(_CLASS_PALETTE_RGB)])
         for k in range(artifact.num_classes)
@@ -347,50 +388,22 @@ def _render_sample_matplotlib(
     bounds = np.arange(-1.5, artifact.num_classes + 0.5, 1.0)
     norm_ord = BoundaryNorm(bounds, cmap_ord.N)
 
-    # Determine rows cleanly: Row 0 (data), Row 1 (preds), plus optional internals rows
-    row_specs: List[Tuple[str, int]] = []
     n_data_cols = 1 + (1 if artifact.gt_ordinal is not None else 0) + artifact.num_annotators
-    row_specs.append(("data", n_data_cols))
-    row_specs.append(("preds", max(1, len(artifact.predictions))))
+    n_pred_cols = max(1, len(artifact.predictions))
+    n_cols = max(n_data_cols, n_pred_cols)
 
-    ctgce_pred = next((p for p in artifact.predictions if p.lambda_field is not None), None)
-    ah_pred = next((p for p in artifact.predictions if p.reliability_map is not None), None)
-    cs_pred = next((p for p in artifact.predictions if p.confusion_matrices is not None), None)
-
-    if ctgce_pred is not None:
-        for k in range(artifact.num_classes):
-            row_specs.append((f"ctgce_lambda_{k}", artifact.num_annotators))
-    if ah_pred is not None:
-        row_specs.append(("ah_rel", artifact.num_annotators))
-    if cs_pred is not None:
-        row_specs.append(("cs_cm", artifact.num_annotators))
-
-    n_rows = len(row_specs)
-    n_cols = max(c for _, c in row_specs)
-    fig, axes = plt.subplots(
-        n_rows,
-        n_cols,
-        figsize=(2.8 * n_cols, 2.75 * n_rows),
-        squeeze=False,
-    )
+    fig, axes = plt.subplots(2, n_cols, figsize=(2.7 * n_cols, 5.6), squeeze=False)
     for ax in axes.ravel():
         ax.axis("off")
 
-    # Row 0: Input + GT + Annotators
     col = 0
     axes[0, col].imshow(artifact.image_rgb)
-    axes[0, col].set_title("Input", fontsize=9, fontweight="bold")
-    axes[0, col].axis("on")
-    axes[0, col].set_xticks([])
-    axes[0, col].set_yticks([])
+    _clean_image_axis(axes[0, col], "Input", fontsize=9, bold=True)
     col += 1
 
     if artifact.gt_ordinal is not None:
         axes[0, col].imshow(artifact.gt_ordinal, cmap=cmap_ord, norm=norm_ord, interpolation="nearest")
-        axes[0, col].set_title("Ground Truth (Ord.)", fontsize=9, fontweight="bold")
-        axes[0, col].set_xticks([])
-        axes[0, col].set_yticks([])
-        axes[0, col].axis("on")
+        _clean_image_axis(axes[0, col], "Ground Truth", fontsize=9, bold=True)
         col += 1
 
     for r in range(artifact.num_annotators):
@@ -401,13 +414,9 @@ def _render_sample_matplotlib(
             norm=norm_ord,
             interpolation="nearest",
         )
-        axes[0, col].set_title(f"Ann {r}" if has_ann else f"Ann {r} (missing)", fontsize=9)
-        axes[0, col].set_xticks([])
-        axes[0, col].set_yticks([])
-        axes[0, col].axis("on")
+        _clean_image_axis(axes[0, col], f"Ann {r}" if has_ann else f"Ann {r} (missing)", fontsize=9)
         col += 1
 
-    # Row 1: Model Ordinal Predictions
     for idx, pred in enumerate(artifact.predictions):
         axes[1, idx].imshow(
             pred.pred_ordinal,
@@ -415,75 +424,13 @@ def _render_sample_matplotlib(
             norm=norm_ord,
             interpolation="nearest",
         )
-        score_str = f"\nDice={pred.sample_dice:.3f}" if pred.sample_dice is not None else ""
-        axes[1, idx].set_title(f"{pred.name}{score_str}", fontsize=9, fontweight="bold")
-        axes[1, idx].set_xticks([])
-        axes[1, idx].set_yticks([])
-        axes[1, idx].axis("on")
-
-    row_cursor = 2
-    last_scalar_im = None
-
-    if ctgce_pred is not None and ctgce_pred.lambda_field is not None:
-        for k in range(artifact.num_classes):
-            cname = class_names[k] if k < len(class_names) else f"Class {k}"
-            for r in range(artifact.num_annotators):
-                ax = axes[row_cursor, r]
-                last_scalar_im = ax.imshow(
-                    ctgce_pred.lambda_field[r, k],
-                    cmap="magma",
-                    vmin=0.0,
-                    vmax=1.0,
-                )
-                suffix = "" if artifact.annotator_valid[r].any() else " [absent]"
-                ax.set_title(f"CT-GCE $\\Lambda$ ({cname})\nAnn {r}{suffix}", fontsize=8)
-                ax.set_xticks([])
-                ax.set_yticks([])
-                ax.axis("on")
-            row_cursor += 1
-
-    if ah_pred is not None and ah_pred.reliability_map is not None:
-        for r in range(artifact.num_annotators):
-            ax = axes[row_cursor, r]
-            last_scalar_im = ax.imshow(
-                ah_pred.reliability_map[r],
-                cmap="viridis",
-                vmin=0.0,
-                vmax=1.0,
-            )
-            suffix = "" if artifact.annotator_valid[r].any() else " [absent]"
-            ax.set_title(f"Annot-Harmony Rel.\nAnn {r}{suffix}", fontsize=8)
-            ax.set_xticks([])
-            ax.set_yticks([])
-            ax.axis("on")
-        row_cursor += 1
-
-    if cs_pred is not None and cs_pred.confusion_matrices is not None:
-        k_cnt = artifact.num_classes
-        for r in range(artifact.num_annotators):
-            ax = axes[row_cursor, r]
-            cm = cs_pred.confusion_matrices[r]
-            ax.imshow(cm, cmap="Blues", vmin=0.0, vmax=1.0)
-            for i in range(k_cnt):
-                for j in range(k_cnt):
-                    val = float(cm[i, j])
-                    ax.text(
-                        j,
-                        i,
-                        f"{val:.2f}",
-                        ha="center",
-                        va="center",
-                        fontsize=7,
-                        color="white" if val > 0.55 else "black",
-                    )
-            ax.set_title(f"CrowdSeg CM (Ann {r})", fontsize=8)
-            ax.set_xticks(range(k_cnt))
-            ax.set_yticks(range(k_cnt))
-            ax.tick_params(labelsize=7)
-            ax.axis("on")
+        _clean_image_axis(axes[1, idx], pred.name, fontsize=9, bold=True)
 
     legend_handles = [
-        Patch(facecolor=tuple(c / 255.0 for c in _CLASS_PALETTE_RGB[k % len(_CLASS_PALETTE_RGB)]), label=class_names[k])
+        Patch(
+            facecolor=tuple(c / 255.0 for c in _CLASS_PALETTE_RGB[k % len(_CLASS_PALETTE_RGB)]),
+            label=class_names[k],
+        )
         for k in range(artifact.num_classes)
     ]
     if bool((~artifact.annotator_valid).any()):
@@ -491,38 +438,193 @@ def _render_sample_matplotlib(
             Patch(facecolor=tuple(c / 255.0 for c in _MISSING_RGB), label="Missing / Ignored")
         )
 
-    fig.suptitle(
-        f"Sample #{artifact.sample_index} — {artifact.file_name}",
-        fontsize=11,
-        fontweight="bold",
-        y=0.995,
-    )
     fig.legend(
         handles=legend_handles,
-        loc="upper right",
+        loc="lower center",
+        bbox_to_anchor=(0.5, -0.02),
         ncol=len(legend_handles),
         fontsize=8,
         frameon=True,
     )
-    if last_scalar_im is not None:
-        cbar_ax = fig.add_axes((0.93, 0.12, 0.014, 0.35))
-        fig.colorbar(last_scalar_im, cax=cbar_ax, label="Reliability [0, 1]")
-        fig.tight_layout(rect=(0.0, 0.0, 0.915, 0.955))
-    else:
-        fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.955))
+    fig.tight_layout(rect=(0.0, 0.05, 1.0, 1.0))
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    fig.savefig(output_path, dpi=dpi, bbox_inches="tight")
     plt.close(fig)
     return output_path
+
+
+def _render_scalar_grid_matplotlib(
+    field_grid: Sequence[Sequence[np.ndarray]],
+    title_grid: Sequence[Sequence[str]],
+    cmap: str,
+    cbar_label: str,
+    output_path: Path,
+    dpi: int = _PUBLICATION_DPI,
+) -> Path:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    n_rows = len(field_grid)
+    n_cols = max(len(row) for row in field_grid)
+    fig, axes = plt.subplots(
+        n_rows,
+        n_cols,
+        figsize=(2.7 * n_cols + 0.6, 2.7 * n_rows),
+        squeeze=False,
+    )
+    for ax in axes.ravel():
+        ax.axis("off")
+
+    last_im = None
+    for r_idx, row in enumerate(field_grid):
+        for c_idx, arr in enumerate(row):
+            ax = axes[r_idx, c_idx]
+            last_im = ax.imshow(arr, cmap=cmap, vmin=0.0, vmax=1.0)
+            _clean_image_axis(ax, title_grid[r_idx][c_idx], fontsize=8)
+
+    if last_im is not None:
+        fig.subplots_adjust(right=0.90, wspace=0.08, hspace=0.22)
+        cbar_ax = fig.add_axes((0.92, 0.14, 0.018, 0.72))
+        fig.colorbar(last_im, cax=cbar_ax, label=cbar_label)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=dpi, bbox_inches="tight")
+    plt.close(fig)
+    return output_path
+
+
+def _render_confusion_matrices_matplotlib(
+    confusion_matrices: np.ndarray,
+    num_classes: int,
+    num_annotators: int,
+    output_path: Path,
+    dpi: int = _PUBLICATION_DPI,
+) -> Path:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    fig, axes = plt.subplots(
+        1,
+        num_annotators,
+        figsize=(2.7 * num_annotators, 2.75),
+        squeeze=False,
+    )
+    for r in range(num_annotators):
+        ax = axes[0, r]
+        cm = confusion_matrices[r]
+        ax.imshow(cm, cmap="Blues", vmin=0.0, vmax=1.0)
+        for i in range(num_classes):
+            for j in range(num_classes):
+                val = float(cm[i, j])
+                ax.text(
+                    j,
+                    i,
+                    f"{val:.2f}",
+                    ha="center",
+                    va="center",
+                    fontsize=8,
+                    color="white" if val > 0.55 else "black",
+                )
+        ax.set_title(f"CrowdSeg CM (Ann {r})", fontsize=9, fontweight="bold")
+        ax.set_xticks(range(num_classes))
+        ax.set_yticks(range(num_classes))
+        ax.tick_params(labelsize=7)
+
+    fig.tight_layout()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=dpi, bbox_inches="tight")
+    plt.close(fig)
+    return output_path
+
+
+def save_sample_figures(
+    artifact: SampleVisualArtifact,
+    sample_dir: str | Path,
+    class_names: Optional[Sequence[str]] = None,
+    dpi: int = _PUBLICATION_DPI,
+) -> Dict[str, Path]:
+    """Save separated publication-ready 300-DPI figures for one sample inside ``sample_dir``."""
+    out_dir = Path(sample_dir)
+    names = (
+        list(class_names)
+        if class_names is not None
+        else [f"Class {k}" for k in range(artifact.num_classes)]
+    )
+    try:
+        import matplotlib  # noqa: F401
+    except ImportError:
+        return _save_sample_figures_pil(artifact, out_dir, dpi=dpi)
+
+    saved: Dict[str, Path] = {}
+    saved["input_anns_predictions"] = _render_overview_matplotlib(
+        artifact, out_dir / "input_anns_predictions.png", class_names=names, dpi=dpi
+    )
+
+    ctgce_pred = next((p for p in artifact.predictions if p.lambda_field is not None), None)
+    if ctgce_pred is not None and ctgce_pred.lambda_field is not None:
+        lam_fields = [
+            [ctgce_pred.lambda_field[r, k] for r in range(artifact.num_annotators)]
+            for k in range(artifact.num_classes)
+        ]
+        lam_titles = []
+        for k in range(artifact.num_classes):
+            cname = names[k] if k < len(names) else f"Class {k}"
+            lam_titles.append([
+                f"CT-GCE $\\Lambda$ ({cname})\nAnn {r}"
+                + ("" if artifact.annotator_valid[r].any() else " [absent]")
+                for r in range(artifact.num_annotators)
+            ])
+        saved["ctgce_lambdas"] = _render_scalar_grid_matplotlib(
+            field_grid=lam_fields,
+            title_grid=lam_titles,
+            cmap="magma",
+            cbar_label="Reliability [0, 1]",
+            output_path=out_dir / "ctgce_lambdas.png",
+            dpi=dpi,
+        )
+
+    ah_pred = next((p for p in artifact.predictions if p.reliability_map is not None), None)
+    if ah_pred is not None and ah_pred.reliability_map is not None:
+        ah_fields = [[ah_pred.reliability_map[r] for r in range(artifact.num_annotators)]]
+        ah_titles = [[
+            f"Annot-Harmony Rel.\nAnn {r}"
+            + ("" if artifact.annotator_valid[r].any() else " [absent]")
+            for r in range(artifact.num_annotators)
+        ]]
+        saved["annot_harmony_reliability"] = _render_scalar_grid_matplotlib(
+            field_grid=ah_fields,
+            title_grid=ah_titles,
+            cmap="viridis",
+            cbar_label="Reliability [0, 1]",
+            output_path=out_dir / "annot_harmony_reliability.png",
+            dpi=dpi,
+        )
+
+    cs_pred = next((p for p in artifact.predictions if p.confusion_matrices is not None), None)
+    if cs_pred is not None and cs_pred.confusion_matrices is not None:
+        saved["crowdseg_confusion_matrices"] = _render_confusion_matrices_matplotlib(
+            confusion_matrices=cs_pred.confusion_matrices,
+            num_classes=artifact.num_classes,
+            num_annotators=artifact.num_annotators,
+            output_path=out_dir / "crowdseg_confusion_matrices.png",
+            dpi=dpi,
+        )
+
+    return saved
 
 
 def save_sample_figure(
     artifact: SampleVisualArtifact,
     output_path: str | Path,
     class_names: Optional[Sequence[str]] = None,
+    dpi: int = _PUBLICATION_DPI,
 ) -> Path:
-    """Save the composed prediction & interpretability figure to ``output_path``."""
+    """Save the clean 300-DPI overview figure (Input + GT + Annotators + Predictions)."""
     out = Path(output_path)
     names = (
         list(class_names)
@@ -530,9 +632,19 @@ def save_sample_figure(
         else [f"Class {k}" for k in range(artifact.num_classes)]
     )
     try:
-        return _render_sample_matplotlib(artifact, out, class_names=names)
+        return _render_overview_matplotlib(artifact, out, class_names=names, dpi=dpi)
     except ImportError:
-        return _render_sample_pil(artifact, out)
+        h, w = artifact.image_rgb.shape[:2]
+        row0: List[Tuple[str, Image.Image]] = [
+            ("Input", Image.fromarray((artifact.image_rgb * 255).astype(np.uint8))),
+        ]
+        if artifact.gt_ordinal is not None:
+            row0.append(("Ground Truth", Image.fromarray(_ordinal_to_rgb(artifact.gt_ordinal))))
+        for r in range(artifact.num_annotators):
+            lbl = f"Ann {r}" if artifact.annotator_valid[r].any() else f"Ann {r} (missing)"
+            row0.append((lbl, Image.fromarray(_ordinal_to_rgb(artifact.annotator_ordinals[r]))))
+        row1 = [(pred.name, Image.fromarray(_ordinal_to_rgb(pred.pred_ordinal))) for pred in artifact.predictions]
+        return _save_pil_grid([row0, row1], (w, h), out, dpi=dpi)
 
 
 def save_sample_arrays(artifact: SampleVisualArtifact, output_path: str | Path) -> Path:
