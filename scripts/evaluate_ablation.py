@@ -12,7 +12,12 @@ Supports two modes:
            - ``s2_gate_plus_lambda``: ``1{P > C_k} * Lambda`` (r10 arm S2)
            - ``s3_ct_gce_no_warmup``: full CT-GCE without warm-up
            - ``s3_ct_gce_full``: full CT-GCE (warm-up + Eq. 3/4/7/1, r10 arm S3)
-       and runs paired statistical tests against ``s3_ct_gce_full``.
+       plus the two category-agnostic cutoff arms of the component ablation:
+           - ``a1_global_cutoff``: one cutoff for all categories (pooled Eq. 4)
+           - ``a2_floor_cutoff``: every cutoff fixed at ``1/K`` (no Eq. 3/4 quantile)
+       and runs paired statistical tests against ``s3_ct_gce_full``. ``--arms``
+       selects a subset, and ``--reference_dir`` reuses an existing full CT-GCE
+       run as the reference instead of training it again.
 """
 
 from __future__ import annotations
@@ -33,7 +38,7 @@ for _p in (str(_ROOT), str(_ROOT / "src")):
 
 from crowdsegmenter.config import ExperimentConfig
 from crowdsegmenter.data.loader import CrowdSegmenterDataLoader
-from crowdsegmenter.losses.ct_gce import CTGCELoss
+from crowdsegmenter.losses.ct_gce import CTGCELoss, CutoffMode
 from crowdsegmenter.models.ctgce import CTGCEModel
 from crowdsegmenter.training.trainer import CTGCETrainer
 from crowdsegmenter.utils.ablation import (
@@ -51,6 +56,7 @@ class AblationArmSpec:
     ablation_arm: Literal["S1", "S2", "S3"]
     no_warmup: bool = False
     plain_gce_only: bool = False
+    cutoff_mode: CutoffMode = "per_category"
 
 
 CT_GCE_ABLATION_ARMS: tuple[AblationArmSpec, ...] = (
@@ -59,7 +65,11 @@ CT_GCE_ABLATION_ARMS: tuple[AblationArmSpec, ...] = (
     AblationArmSpec(name="s2_gate_plus_lambda", ablation_arm="S2"),
     AblationArmSpec(name="s3_ct_gce_no_warmup", ablation_arm="S3", no_warmup=True),
     AblationArmSpec(name="s3_ct_gce_full", ablation_arm="S3"),
+    AblationArmSpec(name="a1_global_cutoff", ablation_arm="S3", cutoff_mode="global"),
+    AblationArmSpec(name="a2_floor_cutoff", ablation_arm="S3", cutoff_mode="fixed_floor"),
 )
+
+REFERENCE_ARM = "s3_ct_gce_full"
 
 
 def _print_ablation_table(rows: List[Dict[str, Any]]) -> None:
@@ -104,8 +114,26 @@ def run_ct_gce_ablation_suite(
     output_dir: Optional[str | Path] = None,
     alpha: float = 0.05,
     data_dir: Optional[str | Path] = None,
+    arms: Optional[List[str]] = None,
+    reference_dir: Optional[str | Path] = None,
 ) -> Dict[str, Any]:
-    """Train and evaluate all CT-GCE ablation arms on the same splits & seed."""
+    """Train and evaluate CT-GCE ablation arms on the same splits & seed.
+
+    ``arms`` restricts the run to the named arms (default: all). ``reference_dir``
+    points to an existing full CT-GCE output directory holding
+    ``test_<protocol>_per_sample.npz``; it is used as the ``s3_ct_gce_full``
+    reference without retraining.
+    """
+    known = {spec.name for spec in CT_GCE_ABLATION_ARMS}
+    selected = list(arms) if arms else [spec.name for spec in CT_GCE_ABLATION_ARMS]
+    unknown = sorted(set(selected) - known)
+    if unknown:
+        raise ValueError(f"Unknown ablation arm(s) {unknown}; choose from {sorted(known)}")
+    if REFERENCE_ARM not in selected and reference_dir is None:
+        raise ValueError(
+            f"The reference arm {REFERENCE_ARM!r} is not selected: add it to --arms "
+            "or pass --reference_dir with an existing full CT-GCE run"
+        )
     cfg = ExperimentConfig.from_yaml(config_path)
     if data_dir is not None:
         cfg.data.data_dir = str(data_dir)
@@ -120,6 +148,8 @@ def run_ct_gce_ablation_suite(
     arm_summaries: Dict[str, Any] = {}
 
     for spec in CT_GCE_ABLATION_ARMS:
+        if spec.name not in selected:
+            continue
         set_seed(cfg.training.seed)
         arm_cfg = cfg.model_copy(deep=True)
         arm_cfg.experiment.save_results = True
@@ -132,7 +162,10 @@ def run_ct_gce_ablation_suite(
         elif spec.no_warmup:
             arm_cfg.training.warmup_epochs = 0
 
-        print(f"\n>>> Running CT-GCE ablation arm: {spec.name} (mode={spec.ablation_arm})")
+        print(
+            f"\n>>> Running CT-GCE ablation arm: {spec.name} "
+            f"(mode={spec.ablation_arm}, cutoffs={spec.cutoff_mode})"
+        )
         model = CTGCEModel(arm_cfg.model).to(device)
         criterion = CTGCELoss(
             annotators=arm_cfg.model.num_annotators,
@@ -140,6 +173,7 @@ def run_ct_gce_ablation_suite(
             ignored_value=arm_cfg.data.ignored_value,
             q=arm_cfg.training.ctgce_q,
             ablation_arm=spec.ablation_arm,
+            cutoff_mode=spec.cutoff_mode,
         ).to(device)
 
         trainer = CTGCETrainer(
@@ -164,6 +198,9 @@ def run_ct_gce_ablation_suite(
         arm_dirs[spec.name] = arm_dir
         arm_summaries[spec.name] = test_summary
 
+    if REFERENCE_ARM not in arm_dirs and reference_dir is not None:
+        arm_dirs[REFERENCE_ARM] = Path(reference_dir)
+
     protocols: List[Literal["probabilistic", "gt"]] = ["probabilistic"]
     if cfg.data.load_ground_truth:
         protocols.append("gt")
@@ -173,7 +210,7 @@ def run_ct_gce_ablation_suite(
         comparisons[proto] = compare_saved_results(
             entries=arm_dirs,
             protocol=proto,
-            reference="s3_ct_gce_full",
+            reference=REFERENCE_ARM,
             output_dir=out_root,
             alpha=alpha,
         )
@@ -202,7 +239,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--run_ct_gce_ablation",
         action="store_true",
-        help="Run the 5 CT-GCE ablation arms on a YAML config and compare on Test.",
+        help="Run the CT-GCE ablation arms on a YAML config and compare on Test.",
+    )
+    parser.add_argument(
+        "--arms",
+        nargs="+",
+        default=None,
+        help="Subset of ablation arms to train with --run_ct_gce_ablation (default: all).",
+    )
+    parser.add_argument(
+        "--reference_dir",
+        type=str,
+        default=None,
+        help="Existing full CT-GCE output dir reused as the s3_ct_gce_full reference.",
     )
     parser.add_argument(
         "--config",
@@ -255,6 +304,8 @@ if __name__ == "__main__":
             output_dir=args.output_dir,
             alpha=args.alpha,
             data_dir=args.data,
+            arms=args.arms,
+            reference_dir=args.reference_dir,
         )
     elif args.compare:
         entries = _parse_compare_pairs(args.compare)

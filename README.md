@@ -30,7 +30,7 @@ CrowdSegmenter-CT-GCE/
 │   └── pilots/                           # Auxiliary proof-of-concept scripts
 ├── notebooks/
 │   ├── pilots/                           # Verification and pilot-study notebooks
-│   └── experiments/                      # Colab notebooks (ctgce, crowdseg, baselines, supervised, benchmark, visualization)
+│   └── experiments/                      # Colab notebooks (ctgce, crowdseg, baselines, supervised, benchmark, ablation, visualization)
 ├── results/
 │   ├── benchmark/                        # CSV/JSON summary tables and per-sample metrics (Oxford-IIIT Pet, RIGA, NAIP Well Pad)
 │   ├── optuna/                           # Optuna study databases, summaries, and diagnostic plots
@@ -49,7 +49,7 @@ CrowdSegmenter-CT-GCE/
 - **Classical Baselines**: `scripts/evaluate_baselines.py`
 - **Hyperparameter Optimization (Optuna)**: `scripts/optimize_ct_gce.py`, `scripts/optimize_noisy_label.py`
 - **Statistical Benchmark**: `scripts/evaluate_benchmark.py` (flexible over provided `--*_weights`, paired significance tests, and `--eval-nlc`)
-- **CT-GCE Component Ablation**: `scripts/evaluate_ablation.py`
+- **CT-GCE Component Ablation**: `scripts/evaluate_ablation.py` (`--arms` to select arms such as `a1_global_cutoff`, `a2_floor_cutoff`, `s1_hard_gate`; `--reference_dir` to reuse an existing full CT-GCE run)
 - **Visual Prediction Export (300 DPI)**: `scripts/visualize_predictions.py`
 
 ## Installation and Testing

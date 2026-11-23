@@ -5,6 +5,12 @@ Delegates all mathematical equations directly to ``CrowdSegmenter_CT_GCE``:
     - Eq. (3): ``fit_dawid_skene`` and ``rho_hat`` (per-category noise estimates)
     - Eq. (4): ``calibrate_cutoffs`` (per-category truncation thresholds)
     - Eq. (7): ``c3_loss`` (coupled likelihood identifiability constraint for phi)
+
+Component-ablation cutoff modes (``cutoff_mode``):
+    - ``"per_category"``: Eq. (4) per-category cutoffs (full CT-GCE, default)
+    - ``"global"``: one cutoff shared by every category, calibrated by the same
+      Eq. (4) rule on the noise rate and the confidence sample pooled over categories
+    - ``"fixed_floor"``: every cutoff fixed at the floor ``1/K``, with no noise-rate quantile
 """
 
 from __future__ import annotations
@@ -19,7 +25,14 @@ from torch import Tensor
 from CrowdSegmenter_CT_GCE.dawid_skene import fit_dawid_skene, rho_hat as ds_rho_hat
 from CrowdSegmenter_CT_GCE.identifiability import c3_loss
 from CrowdSegmenter_CT_GCE.module import ctgce_loss
-from CrowdSegmenter_CT_GCE.thresholds import Calibration, calibrate_cutoffs
+from CrowdSegmenter_CT_GCE.thresholds import (
+    Calibration,
+    calibrate_cutoffs,
+    category_confidences,
+    empirical_quantile,
+)
+
+CutoffMode = Literal["per_category", "global", "fixed_floor"]
 
 
 class CTGCELoss(nn.Module):
@@ -41,18 +54,25 @@ class CTGCELoss(nn.Module):
         q: float = 0.7,
         eps: float = 1e-6,
         ablation_arm: Literal["S1", "S2", "S3"] = "S3",
+        cutoff_mode: CutoffMode = "per_category",
     ) -> None:
         super().__init__()
         if not 0.0 < float(q) <= 1.0:
             raise ValueError(f"q must lie in (0, 1]; got {q!r}")
         if ablation_arm not in ("S1", "S2", "S3"):
             raise ValueError(f"ablation_arm must be 'S1', 'S2', or 'S3'; got {ablation_arm!r}")
+        if cutoff_mode not in ("per_category", "global", "fixed_floor"):
+            raise ValueError(
+                "cutoff_mode must be 'per_category', 'global', or 'fixed_floor'; "
+                f"got {cutoff_mode!r}"
+            )
         self.R = annotators
         self.K = classes
         self.ignored_value = ignored_value
         self.q = float(q)
         self.eps = eps
         self.ablation_arm = ablation_arm
+        self.cutoff_mode = cutoff_mode
 
     def _prepare_probabilities(self, seg_pred: Tensor) -> Tensor:
         """Convert ``[B, K, H, W]`` predictions into simplex-safe ``[B, H, W, K]``."""
@@ -158,7 +178,11 @@ class CTGCELoss(nn.Module):
         rho_hat: Tensor,
         max_pixels: Optional[int] = 500_000,
     ) -> Calibration:
-        """Calibrate Eq. (4) per-category truncation cutoffs ``C_k = max(1/K, F_k^{-1}(rho_hat_k))``."""
+        """Calibrate Eq. (4) per-category truncation cutoffs ``C_k = max(1/K, F_k^{-1}(rho_hat_k))``.
+
+        With ``cutoff_mode != "per_category"`` the category-agnostic ablation
+        cutoffs are returned instead (see :meth:`_calibrate_category_agnostic`).
+        """
         p = self._prepare_probabilities(seg_pred.detach()).cpu()
         y, m = self.unpack_annotations(annotations)
         y_cpu, m_cpu = y.cpu(), m.cpu()
@@ -171,7 +195,44 @@ class CTGCELoss(nn.Module):
             p_flat = p_flat[::step]
             y_flat = y_flat[:, ::step]
             m_flat = m_flat[:, ::step]
-        return calibrate_cutoffs(p_flat, y_flat, m_flat, rho_hat.cpu())
+        if self.cutoff_mode == "per_category":
+            return calibrate_cutoffs(p_flat, y_flat, m_flat, rho_hat.cpu())
+        return self._calibrate_category_agnostic(p_flat, y_flat, m_flat, rho_hat.cpu())
+
+    def _calibrate_category_agnostic(
+        self, p_flat: Tensor, y_flat: Tensor, m_flat: Tensor, rho_hat: Tensor
+    ) -> Calibration:
+        """Ablation cutoffs that carry no category index.
+
+        ``"global"``: ``C = max(1/K, F^{-1}(rho_bar))`` where ``F`` pools the
+        confidence of every annotation on its own annotated category and
+        ``rho_bar`` is the annotation-weighted mean of ``rho_hat``.
+        ``"fixed_floor"``: ``C_k = 1/K`` for every category, with no quantile.
+        """
+        confidences = category_confidences(p_flat, y_flat, m_flat)
+        floor = 1.0 / self.K
+        if self.cutoff_mode == "fixed_floor":
+            quantile = torch.full((self.K,), floor, dtype=torch.float64)
+        else:
+            counts = torch.tensor([c.numel() for c in confidences], dtype=torch.float64)
+            if float(counts.sum()) == 0.0:
+                raise ValueError("no annotated pixel: the pooled confidence sample is empty")
+            rho = rho_hat.to(torch.float64)
+            if not bool(torch.isfinite(rho).all()):
+                raise ValueError("rho_hat must be finite to pool the noise rate")
+            rho_bar = float((counts * rho).sum() / counts.sum())
+            pooled = torch.cat(confidences)
+            quantile = empirical_quantile(pooled, rho_bar).repeat(self.K)
+        cutoffs = torch.clamp(quantile, min=floor)
+        clipped = quantile < floor
+        discarded = torch.tensor(
+            [
+                float((c <= cutoffs[k]).to(torch.float64).mean()) if c.numel() else float("nan")
+                for k, c in enumerate(confidences)
+            ],
+            dtype=torch.float64,
+        )
+        return Calibration(cutoffs=cutoffs, quantile=quantile, clipped=clipped, discarded=discarded)
 
     def forward(
         self,

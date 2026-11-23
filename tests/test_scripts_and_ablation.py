@@ -399,6 +399,8 @@ def test_train_eval_baselines_and_ablation_end_to_end(tmp_path: Path) -> None:
         "s2_gate_plus_lambda",
         "s3_ct_gce_no_warmup",
         "s3_ct_gce_full",
+        "a1_global_cutoff",
+        "a2_floor_cutoff",
     }
     assert (tmp_path / "ablation_suite" / "ablation_suite_summary.json").is_file()
     assert (tmp_path / "ablation_suite" / "ablation_gt.csv").is_file()
@@ -477,6 +479,7 @@ def test_experiment_notebooks_are_valid_and_reference_real_files() -> None:
     ]
     rel = {p.relative_to(nb_root).as_posix() for p in nb_paths}
     expected = {
+        "ablation/oxfordiiitpet.ipynb",
         "baselines/naip_wellpad.ipynb",
         "baselines/oxfordiiitpet.ipynb",
         "baselines/riga.ipynb",
@@ -514,3 +517,47 @@ def test_experiment_notebooks_are_valid_and_reference_real_files() -> None:
                 assert (repo_root / token).is_file(), f"Missing {token} in {nb_path}"
             if token.startswith("configs/") and token.endswith(".yaml"):
                 assert (repo_root / token).is_file(), f"Missing {token} in {nb_path}"
+
+
+def test_ctgce_loss_category_agnostic_cutoff_modes() -> None:
+    torch.manual_seed(0)
+    seg_pred = torch.softmax(torch.randn(2, 2, 16, 16), dim=1)
+    labels = torch.randint(0, 2, (2, 3, 16, 16))
+    masks = (
+        torch.nn.functional.one_hot(labels, num_classes=2)
+        .permute(0, 4, 1, 2, 3)
+        .float()
+        .reshape(2, 6, 16, 16)
+    )
+    rho_hat = torch.tensor([0.10, 0.40])
+
+    per_cat = CTGCELoss(annotators=3, classes=2, q=0.7).calibrate(seg_pred, masks, rho_hat)
+    glob = CTGCELoss(annotators=3, classes=2, q=0.7, cutoff_mode="global").calibrate(
+        seg_pred, masks, rho_hat
+    )
+    floor = CTGCELoss(annotators=3, classes=2, q=0.7, cutoff_mode="fixed_floor").calibrate(
+        seg_pred, masks, rho_hat
+    )
+
+    # Global: one shared cutoff, never below the 1/K floor.
+    assert torch.allclose(glob.cutoffs, glob.cutoffs[0].expand_as(glob.cutoffs))
+    assert bool((glob.cutoffs >= 0.5).all())
+    # Fixed floor: every cutoff equals 1/K and no quantile is taken.
+    assert torch.allclose(floor.cutoffs, torch.full((2,), 0.5, dtype=floor.cutoffs.dtype))
+    assert per_cat.cutoffs.shape == glob.cutoffs.shape == floor.cutoffs.shape
+
+    with pytest.raises(ValueError):
+        CTGCELoss(annotators=3, classes=2, cutoff_mode="per_annotator")
+
+
+def test_ablation_suite_rejects_unknown_arms_and_missing_reference() -> None:
+    from scripts.evaluate_ablation import CT_GCE_ABLATION_ARMS, run_ct_gce_ablation_suite
+
+    names = {spec.name for spec in CT_GCE_ABLATION_ARMS}
+    assert {"a1_global_cutoff", "a2_floor_cutoff", "s1_hard_gate", "s3_ct_gce_full"} <= names
+    with pytest.raises(ValueError):
+        run_ct_gce_ablation_suite("configs/training/ctgce/oxfordiiitpet.yaml", arms=["nope"])
+    with pytest.raises(ValueError):
+        run_ct_gce_ablation_suite(
+            "configs/training/ctgce/oxfordiiitpet.yaml", arms=["a1_global_cutoff"]
+        )
