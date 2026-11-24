@@ -480,6 +480,7 @@ def test_experiment_notebooks_are_valid_and_reference_real_files() -> None:
     rel = {p.relative_to(nb_root).as_posix() for p in nb_paths}
     expected = {
         "ablation/oxfordiiitpet.ipynb",
+        "ablation/riga.ipynb",
         "baselines/naip_wellpad.ipynb",
         "baselines/oxfordiiitpet.ipynb",
         "baselines/riga.ipynb",
